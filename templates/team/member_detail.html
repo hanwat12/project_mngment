@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }} - Team Member Details{% endblock %}
+
+{% block content %}
+<div class="modal-header d-flex justify-content-between align-items-center">
+    <h2>Team Member Details</h2>
+    <button type="button" class="btn-close" onclick="window.history.back()"></button>
+</div>
+
+<!-- Task Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stat-card bg-success">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ completed_tasks|length }}</h3>
+                <p>Completed Tasks</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-warning">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ pending_tasks|length }}</h3>
+                <p>Active Tasks</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-danger">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ overdue_tasks|length }}</h3>
+                <p>Overdue Tasks</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card bg-info">
+            <div class="stat-icon">
+                <i class="fas fa-clipboard-check"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ pending_approvals|length }}</h3>
+                <p>Pending Approval</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs" id="memberTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">Overview</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects" type="button" role="tab">Projects</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab">Tasks</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">Contact Info</button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="memberTabsContent">
+    <!-- Overview Tab -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h4>Current Projects</h4>
+                {% for project in user_projects %}
+                <div class="project-card mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5>{{ project.title }}</h5>
+                            <p class="text-muted">{{ project.creator.username }}</p>
+                        </div>
+                        <span class="badge bg-primary">{{ project.status }}</span>
+                    </div>
+                    <div class="progress mb-2">
+                        <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+                    </div>
+                    <small class="text-muted">Progress: {{ project.progress }}%</small>
+                    <div class="mt-2">
+                        <small class="text-muted">Tasks: {{ project.tasks.count() }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="col-md-6">
+                <h4>Recent Tasks</h4>
+                {% for task in user_tasks[:5] %}
+                <div class="task-card mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6>{{ task.title }}</h6>
+                            <small class="text-muted">{{ task.project.title }}</small>
+                            {% if task.deadline %}
+                            <div class="deadline-info">
+                                <small>Due: {{ task.deadline.strftime('%b %d, %Y') }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if task.status == 'Completed' %}
+                                <span class="badge bg-success">completed</span>
+                            {% elif task.status == 'In Progress' %}
+                                <span class="badge bg-warning">in-progress</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ task.status.lower() }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="progress mt-2">
+                        <div class="progress-bar" style="width: {{ '100' if task.status == 'Completed' else ('60' if task.status == 'In Progress' else '0') }}%"></div>
+                    </div>
+                    <small class="text-muted">Progress: {{ '100' if task.status == 'Completed' else ('60' if task.status == 'In Progress' else '0') }}%</small>
+                    
+                    {% if task.skill_match_percentage > 0 %}
+                    <div class="mt-2">
+                        <small class="text-warning">★ Skill Match: {{ task.skill_match_percentage }}%</small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Projects Tab -->
+    <div class="tab-pane fade" id="projects" role="tabpanel">
+        <div class="mt-4">
+            {% for project in user_projects %}
+            <div class="project-detail-card mb-3">
+                <h5>{{ project.title }}</h5>
+                <p>{{ project.description }}</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <small><strong>Status:</strong> {{ project.status }}</small><br>
+                        <small><strong>Progress:</strong> {{ project.progress }}%</small><br>
+                        <small><strong>Created:</strong> {{ project.created_at.strftime('%b %d, %Y') }}</small>
+                    </div>
+                    <div class="col-md-6">
+                        {% if project.deadline %}
+                        <small><strong>Deadline:</strong> {{ project.deadline.strftime('%b %d, %Y') }}</small><br>
+                        {% endif %}
+                        <small><strong>Tasks:</strong> {{ project.tasks.count() }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Tasks Tab -->
+    <div class="tab-pane fade" id="tasks" role="tabpanel">
+        <div class="mt-4">
+            {% for task in user_tasks %}
+            <div class="task-detail-card mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6>{{ task.title }}</h6>
+                        <p class="text-muted">{{ task.description[:100] }}...</p>
+                        <small>Project: {{ task.project.title }}</small>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% if current_user.role in ['Admin', 'Manager'] %}
+                            <li><a class="dropdown-item" href="#" onclick="showReassignModal({{ task.id }})">Reassign Task</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('view_task', task_id=task.id) }}">View Details</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <small><strong>Status:</strong> 
+                            {% if task.status == 'Completed' %}
+                                <span class="badge bg-success">{{ task.status }}</span>
+                            {% elif task.status == 'In Progress' %}
+                                <span class="badge bg-warning">{{ task.status }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ task.status }}</span>
+                            {% endif %}
+                        </small><br>
+                        <small><strong>Priority:</strong> 
+                            <span class="badge bg-{{ 'danger' if task.priority == 'High' else ('warning' if task.priority == 'Medium' else 'info') }}">{{ task.priority }}</span>
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        {% if task.deadline %}
+                        <small><strong>Due:</strong> {{ task.deadline.strftime('%b %d, %Y') }}</small><br>
+                        {% endif %}
+                        {% if task.skill_match_percentage > 0 %}
+                        <small class="text-warning"><strong>★ Skill Match:</strong> {{ task.skill_match_percentage }}%</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Contact Tab -->
+    <div class="tab-pane fade" id="contact" role="tabpanel">
+        <div class="mt-4">
+            <div class="contact-info">
+                <h5>Contact Information</h5>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                <p><strong>Role:</strong> {{ user.role }}</p>
+                <p><strong>Joined:</strong> {{ user.created_at.strftime('%b %d, %Y') }}</p>
+                {% if user.manager %}
+                <p><strong>Manager:</strong> {{ user.manager.username }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Task Modal -->
+<div class="modal fade" id="reassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="reassignForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reassign Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Assign to:</label>
+                        <select name="new_assignee_id" class="form-select" required>
+                            <option value="">Select user...</option>
+                            {% if current_user.role == 'Admin' %}
+                                {% for u in User.query.all() %}
+                                    {% if u.id != user.id %}
+                                    <option value="{{ u.id }}">{{ u.username }} ({{ u.role }})</option>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                {% for u in current_user.managed_users %}
+                                <option value="{{ u.id }}">{{ u.username }} ({{ u.role }})</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Reassign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card {
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-right: 15px;
+    opacity: 0.8;
+}
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.stat-info p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.project-card, .task-card, .project-detail-card, .task-detail-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.task-card {
+    border-left-color: #28a745;
+}
+
+.contact-info {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+}
+</style>
+
+<script>
+function showReassignModal(taskId) {
+    const form = document.getElementById('reassignForm');
+    form.action = `/tasks/${taskId}/reassign`;
+    new bootstrap.Modal(document.getElementById('reassignModal')).show();
+}
+</script>
+{% endblock %}

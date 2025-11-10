@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Team Management - SLRD Project Management{% endblock %}
+{% block page_title %}Team Management{% endblock %}
+
+{% block content %}
+<div class="team-management">
+    <div class="content-header">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>Team Members</h2>
+                <p class="text-muted">Manage team members and their permissions</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="team-grid">
+        {% for user in users %}
+        <div class="team-member-card" onclick="showMemberDetails({{ user.id }})">
+            <div class="member-header">
+                <div class="member-avatar">{{ user.username[:2].upper() }}</div>
+                <div class="member-info">
+                    <h4>{{ user.username }}</h4>
+                    <span class="role-badge role-{{ user.role.lower() }}">{{ user.role }}</span>
+                </div>
+            </div>
+            
+            <div class="member-details">
+                <div class="detail-item">
+                    <label>Email:</label>
+                    <span>{{ user.email }}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Joined:</label>
+                    <span>{{ user.created_at.strftime('%b %d, %Y') }}</span>
+                </div>
+                {% if user.manager %}
+                <div class="detail-item">
+                    <label>Manager:</label>
+                    <span>{{ user.manager.username }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="member-stats">
+                <div class="stat">
+                    <span class="stat-number">{{ user.projects_assigned.count() }}</span>
+                    <span class="stat-label">Projects</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">{{ user.tasks_assigned.count() }}</span>
+                    <span class="stat-label">Tasks</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">{{ user.comments.count() }}</span>
+                    <span class="stat-label">Comments</span>
+                </div>
+            </div>
+            
+            <div class="member-actions">
+                {% if user.role != 'Admin' %}
+                <a href="{{ url_for('manage_permissions', user_id=user.id) }}" 
+                   class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation();">
+                    <i class="fas fa-cog"></i> Manage Permissions
+                </a>
+                {% endif %}
+                {% if current_user.role == 'Admin' and user.id != current_user.id %}
+                <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); deleteUser({{ user.id }}, '{{ user.username }}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if users|length == 0 %}
+        <div class="empty-state-large">
+            <i class="fas fa-users"></i>
+            <h3>No Team Members</h3>
+            <p>You don't have any team members to manage yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function showMemberDetails(userId) {
+    window.location.href = `/team/member/${userId}`;
+}
+
+function deleteUser(userId, username) {
+    if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+        fetch(`/users/${userId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting user');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

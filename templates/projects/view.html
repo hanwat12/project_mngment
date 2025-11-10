@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - SLRD Project Management{% endblock %}
+{% block page_title %}{{ project.title }}{% endblock %}
+
+{% block content %}
+<div class="project-details">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Project Info -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3>Project Details</h3>
+                            <span class="status-badge status-{{ project.status.lower().replace(' ', '-') }}">
+                                {{ project.status }}
+                            </span>
+                        </div>
+                        {% if current_user.role in ['Admin', 'Manager'] and project.created_by_id == current_user.id %}
+                        <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit"></i> Edit Project
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="project-info">
+                    <p class="description">{{ project.description or 'No description provided.' }}</p>
+                    
+                    <div class="project-meta-grid">
+                        <div class="meta-item">
+                            <label>🟦 Created by:</label>
+                            <span style="color: blue; font-weight: bold;">{{ project.creator.username }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <label>🟩 Created on:</label>
+                            <span style="color: green; font-weight: bold;">{{ project.created_at.strftime('%B %d, %Y') }}</span>
+                        </div>
+                        {% if project.deadline %}
+                        <div class="meta-item">
+                            <label>🟥 Deadline:</label>
+                            <span style="color: red; font-weight: bold;">{{ project.deadline.strftime('%B %d, %Y') }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="meta-item">
+                            <label>🟧 Progress:</label>
+                            <div class="progress-container">
+                                <span style="color: orange; font-weight: bold;">{{ project.progress }}%</span>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tasks Overview -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3>Tasks Overview</h3>
+                        {% if current_user.role in ['Admin', 'Manager'] %}
+                        <a href="{{ url_for('create_task') }}?project_id={{ project.id }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> New Task
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="tasks-list">
+                    {% for task in tasks %}
+                    <div class="task-item">
+                        <div class="task-content">
+                            <h5><a href="{{ url_for('view_task', task_id=task.id) }}">{{ task.title }}</a></h5>
+                            <p>{{ task.description[:100] }}...</p>
+                            {% if task.assigned_user %}
+                            <small>👤 Assigned to: <span style="color: darkgreen; font-weight: bold;">{{ task.assigned_user.username }}</span></small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="task-meta">
+                            <span class="priority priority-{{ task.priority.lower() }}">⚡ {{ task.priority }}</span>
+                            <span class="status status-{{ task.status.lower().replace(' ', '-') }}">📊 {{ task.status }}</span>
+                            {% if task.deadline %}
+                            <span class="deadline">🟥 Due: <span style="color: red; font-weight: bold;">{{ task.deadline.strftime('%b %d') }}</span></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if tasks|length == 0 %}
+                    <div class="empty-state">
+                        <i class="fas fa-tasks"></i>
+                        <p>No tasks created yet</p>
+                        {% if current_user.role in ['Admin', 'Manager'] %}
+                        <a href="{{ url_for('create_task') }}?project_id={{ project.id }}" class="btn btn-primary">Create First Task</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Comments Section -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Project Discussion</h3>
+                </div>
+                
+                <!-- Add Comment Form -->
+                <form method="POST" action="{{ url_for('add_project_comment', project_id=project.id) }}" class="comment-form">
+                    <div class="form-group">
+                        <textarea class="form-control" name="content" rows="3" 
+                                placeholder="Add a comment..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                </form>
+                
+                <!-- Comments List -->
+                <div class="comments-list">
+                    {% for comment in comments %}
+                    <div class="comment-item">
+                        <div class="comment-header">
+                            <span class="author">{{ comment.author.username }}</span>
+                            <span class="timestamp">{{ comment.created_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        <div class="comment-content">
+                            {{ comment.content }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if comments|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-comments"></i>
+                        <p>No comments yet. Start the discussion!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Milestones Section -->
+            <div class="content-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4>Project Milestones</h4>
+                    {% if current_user.role in ['Admin', 'Manager'] %}
+                    <button class="btn btn-sm btn-outline-primary" onclick="showAddMilestoneModal()">
+                        <i class="fas fa-plus"></i> Add Milestone
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <div class="milestones-list">
+                    {% for milestone in project.milestones %}
+                    <div class="milestone-item">
+                        <div class="milestone-status">
+                            {% if milestone.status == 'Completed' %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                            <i class="fas fa-clock text-warning"></i>
+                            {% endif %}
+                        </div>
+                        <div class="milestone-info">
+                            <h6>{{ milestone.title }}</h6>
+                            <p>{{ milestone.description }}</p>
+                            {% if milestone.due_date %}
+                            <small class="text-muted">Due: {{ milestone.due_date.strftime('%b %d, %Y') }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="milestone-actions">
+                            {% if milestone.status == 'Pending' and current_user in project.assigned_users %}
+                            <button class="btn btn-sm btn-success" onclick="markMilestoneComplete({{ milestone.id }})">
+                                Mark Done
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if project.milestones|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-flag"></i>
+                        <p>No milestones added yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Team Members -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <h4>Team Members</h4>
+                </div>
+                <div class="team-list">
+                    {% for user in project.assigned_users %}
+                    <div class="team-member">
+                        <div class="member-avatar">{{ user.username[:2].upper() }}</div>
+                        <div class="member-info">
+                            <div class="member-name">{{ user.username }}</div>
+                            <div class="member-role">{{ user.role }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Documents -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h4>Project Documents</h4>
+                </div>
+                
+                <!-- Upload Form -->
+                <form method="POST" action="{{ url_for('upload_project_document', project_id=project.id) }}" 
+                      enctype="multipart/form-data" class="upload-form">
+                    <div class="form-group">
+                        <input type="file" class="form-control" name="file" required>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Upload</button>
+                </form>
+                
+                <!-- Documents List -->
+                {% if current_user.has_permission('Proj doc', 'View') or current_user.role in ['Admin', 'Manager'] %}
+                <div class="documents-list">
+                    {% for document in documents %}
+                    <div class="document-item" data-document-id="{{ document.id }}">
+                        <i class="fas fa-file"></i>
+                        <div class="document-info">
+                            <div class="document-name">{{ document.original_filename }}</div>
+                            <div class="document-meta">
+                                <small>{{ document.uploaded_by.username }} • {{ document.uploaded_at.strftime('%b %d') }}
+                                {% if document.versions|length > 0 %}
+                                • Version {{ document.versions|length + 1 }}
+                                {% else %}
+                                • Version 1
+                                {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="document-actions">
+                            {% if current_user.has_permission('Proj doc', 'Download') or current_user.role in ['Admin', 'Manager'] %}
+                            <a href="{{ url_for('download_document', document_id=document.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            {% endif %}
+                            
+                            <!-- Version History Button -->
+                            {% if document.versions|length > 0 %}
+                            <button class="btn btn-sm btn-outline-info" onclick="showVersionHistory({{ document.id }})">
+                                <i class="fas fa-history"></i> Versions
+                            </button>
+                            {% endif %}
+                            
+                            <!-- Upload New Version -->
+                            {% if current_user.has_permission('Proj doc', 'Edit') or current_user.role in ['Admin', 'Manager'] %}
+                            <button class="btn btn-sm btn-outline-warning" onclick="showUploadVersion({{ document.id }})">
+                                <i class="fas fa-upload"></i> New Version
+                            </button>
+                            {% endif %}
+                            
+                            {% if current_user.has_permission('Proj Dis.', 'View') or current_user.role in ['Admin', 'Manager'] %}
+                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleDocumentComments({{ document.id }})">
+                                <i class="fas fa-comments"></i> {{ document.comments.count() }}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Document Comments Section -->
+                    {% if current_user.has_permission('Proj Dis.', 'View') or current_user.role in ['Admin', 'Manager'] %}
+                    <div id="documentComments{{ document.id }}" class="document-comments mt-2" style="display: none;">
+                        {% if current_user.has_permission('Proj Dis.', 'Add') or current_user.role in ['Admin', 'Manager'] %}
+                        <form method="POST" action="{{ url_for('add_document_comment', document_id=document.id) }}" class="mb-2">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" name="content" placeholder="Add a comment..." required>
+                                <button type="submit" class="btn btn-primary">Post</button>
+                            </div>
+                        </form>
+                        {% endif %}
+                        
+                        <div class="document-comments-list">
+                            {% for comment in document.comments %}
+                            <div class="document-comment">
+                                <div class="comment-header">
+                                    <strong>{{ comment.author.username }}</strong>
+                                    <small class="text-muted">{{ comment.created_at.strftime('%b %d, %Y at %I:%M %p') }}</small>
+                                </div>
+                                <p class="comment-content">{{ comment.content }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if documents|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-folder-open"></i>
+                        <p>No documents uploaded</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Version History Modal -->
+<div id="versionHistoryModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Version History</h3>
+            <span class="close" onclick="hideVersionModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="versionHistoryContent">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideVersionModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Upload New Version Modal -->
+<div id="uploadVersionModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Upload New Version</h3>
+            <span class="close" onclick="hideUploadVersionModal()">&times;</span>
+        </div>
+        <form id="uploadVersionForm" method="POST" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Current Document:</label>
+                    <p id="currentDocumentName" class="text-muted"></p>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="newVersionFile">Select New Version:</label>
+                    <input type="file" class="form-control" id="newVersionFile" name="file" required>
+                </div>
+                <div class="form-group">
+                    <label for="versionNotes">Version Notes (optional):</label>
+                    <textarea name="version_notes" id="versionNotes" class="form-control" rows="3" placeholder="What changed in this version?"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Upload Version</button>
+                <button type="button" class="btn btn-secondary" onclick="hideUploadVersionModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Milestone Modal -->
+<div id="addMilestoneModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Milestone</h3>
+            <span class="close" onclick="hideAddMilestoneModal()">&times;</span>
+        </div>
+        <form method="POST" action="{{ url_for('create_milestone', project_id=project.id) }}">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label for="milestoneTitle">Milestone Title</label>
+                    <input type="text" class="form-control" id="milestoneTitle" name="title" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="milestoneDescription">Description</label>
+                    <textarea class="form-control" id="milestoneDescription" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="milestoneDueDate">Due Date</label>
+                    <input type="date" class="form-control" id="milestoneDueDate" name="due_date">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Add Milestone</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddMilestoneModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.document-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.document-actions .btn {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
+.version-item {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.version-item:last-child {
+    border-bottom: none;
+}
+
+.version-info h6 {
+    margin: 0 0 4px 0;
+    color: var(--text-primary, #2c3e50);
+}
+
+.version-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted, #6c757d);
+}
+
+.version-current {
+    background-color: var(--success-bg, #d4edda);
+    border-left: 4px solid #28a745;
+}
+
+.version-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: var(--card-bg, white);
+    margin: 5% auto;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color, #e9ecef);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.close {
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-muted, #aaa);
+}
+
+.close:hover {
+    color: var(--text-primary, #000);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --card-bg: #2d3748;
+        --border-color: #4a5568;
+        --text-primary: #e2e8f0;
+        --text-secondary: #a0aec0;
+        --text-muted: #718096;
+        --success-bg: #2d5a3d;
+    }
+}
+</style>
+
+<script>
+function toggleDocumentComments(documentId) {
+    const commentsDiv = document.getElementById('documentComments' + documentId);
+    if (commentsDiv.style.display === 'none') {
+        commentsDiv.style.display = 'block';
+    } else {
+        commentsDiv.style.display = 'none';
+    }
+}
+
+function showVersionHistory(documentId) {
+    const modal = document.getElementById('versionHistoryModal');
+    const content = document.getElementById('versionHistoryContent');
+    
+    content.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading versions...</div>';
+    modal.style.display = 'block';
+    
+    fetch(`/api/documents/${documentId}/versions`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.versions && data.versions.length > 0) {
+                content.innerHTML = data.versions.map((version, index) => `
+                    <div class="version-item ${version.is_current ? 'version-current' : ''}">
+                        <div class="version-info">
+                            <h6>Version ${version.version_number} ${version.is_current ? '(Current)' : ''}</h6>
+                            <div class="version-meta">
+                                Uploaded by ${version.uploaded_by} on ${version.uploaded_at}
+                                ${version.notes ? '<br><em>' + version.notes + '</em>' : ''}
+                            </div>
+                        </div>
+                        <div class="version-actions">
+                            <a href="/documents/${documentId}/versions/${version.id}/download" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                            ${!version.is_current ? `<button class="btn btn-sm btn-outline-success" onclick="makeCurrentVersion(${documentId}, ${version.id})">Make Current</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                content.innerHTML = '<div class="text-center text-muted"><p>No version history available</p></div>';
+            }
+        })
+        .catch(error => {
+            content.innerHTML = '<div class="text-center text-danger"><p>Error loading version history</p></div>';
+        });
+}
+
+function showUploadVersion(documentId) {
+    const modal = document.getElementById('uploadVersionModal');
+    const form = document.getElementById('uploadVersionForm');
+    const docName = document.getElementById('currentDocumentName');
+    
+    // Get document name from the page
+    const documentItem = document.querySelector(`[data-document-id="${documentId}"]`);
+    if (documentItem) {
+        const nameElement = documentItem.querySelector('.document-name');
+        docName.textContent = nameElement ? nameElement.textContent : 'Unknown Document';
+    }
+    
+    form.action = `/documents/${documentId}/upload-version`;
+    modal.style.display = 'block';
+}
+
+function hideVersionModal() {
+    document.getElementById('versionHistoryModal').style.display = 'none';
+}
+
+function hideUploadVersionModal() {
+    document.getElementById('uploadVersionModal').style.display = 'none';
+    document.getElementById('uploadVersionForm').reset();
+}
+
+function makeCurrentVersion(documentId, versionId) {
+    if (confirm('Make this version the current version? This will replace the current file.')) {
+        fetch(`/documents/${documentId}/versions/${versionId}/make-current`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                hideVersionModal();
+                location.reload();
+            } else {
+                alert('Error making version current. Please try again.');
+            }
+        });
+    }
+}
+
+// Handle upload version form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('uploadVersionForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    hideUploadVersionModal();
+                    location.reload();
+                } else {
+                    alert('Error uploading new version. Please try again.');
+                }
+            }).catch(error => {
+                alert('Network error. Please try again.');
+            });
+        });
+    }
+    
+    // Close modals when clicking outside
+    window.onclick = function(event) {
+        const versionModal = document.getElementById('versionHistoryModal');
+        const uploadModal = document.getElementById('uploadVersionModal');
+        const milestoneModal = document.getElementById('addMilestoneModal');
+        
+        if (event.target == versionModal) {
+            hideVersionModal();
+        }
+        if (event.target == uploadModal) {
+            hideUploadVersionModal();
+        }
+        if (event.target == milestoneModal) {
+            hideAddMilestoneModal();
+        }
+    }
+});
+
+// Milestone functionality
+function showAddMilestoneModal() {
+    document.getElementById('addMilestoneModal').style.display = 'block';
+}
+
+function hideAddMilestoneModal() {
+    document.getElementById('addMilestoneModal').style.display = 'none';
+}
+function markMilestoneComplete(milestoneId) {
+    if (confirm('Mark this milestone as complete?')) {
+        fetch(`/milestones/${milestoneId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error marking milestone as complete. Please try again.');
+            }
+        }).catch(error => {
+            alert('Network error. Please try again.');
+        });
+    }
+}
+
+function createMilestone() {
+    window.location.href = `{{ url_for('create_milestone', project_id=project.id) }}`;
+}
+</script>
+
+{% endblock %}

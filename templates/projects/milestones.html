@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - Milestones{% endblock %}
+{% block page_title %}Project Milestones{% endblock %}
+
+{% block content %}
+<div class="milestones-container">
+    <div class="content-header">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>{{ project.title }} - Milestones</h2>
+                <p class="text-muted">Track key achievements and deadlines for this project</p>
+            </div>
+            {% if current_user.role in ['Admin', 'Manager'] %}
+            <a href="{{ url_for('create_milestone', project_id=project.id) }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Milestone
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Timeline View Toggle -->
+    <div class="view-toggle mb-4">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary active" onclick="switchView('timeline')">
+                <i class="fas fa-stream"></i> Timeline View
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="switchView('list')">
+                <i class="fas fa-list"></i> List View
+            </button>
+        </div>
+    </div>
+
+    <!-- Timeline View -->
+    <div id="timeline-view" class="milestones-timeline">
+        <div class="timeline-container">
+            {% for milestone in milestones %}
+            <div class="timeline-item {% if milestone.status == 'Completed' %}completed{% endif %}">
+                <div class="timeline-marker">
+                    {% if milestone.status == 'Completed' %}
+                    <i class="fas fa-check-circle"></i>
+                    {% else %}
+                    <i class="fas fa-flag"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h4>{{ milestone.title }}</h4>
+                        {% if milestone.due_date %}
+                        <span class="timeline-date">
+                            <i class="fas fa-calendar"></i> {{ milestone.due_date.strftime('%b %d, %Y') }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="timeline-description">{{ milestone.description or 'No description provided.' }}</p>
+                    
+                    <div class="timeline-actions">
+                        <span class="milestone-status-badge status-{{ milestone.status.lower() }}">
+                            {{ milestone.status }}
+                        </span>
+                        
+                        {% if current_user.role in ['Admin', 'Manager'] and milestone.status == 'Pending' %}
+                        <button class="btn btn-sm btn-success" onclick="markMilestoneComplete({{ milestone.id }})">
+                            <i class="fas fa-check"></i> Mark Complete
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- List View -->
+    <div id="list-view" class="milestones-list" style="display: none;">
+        {% for milestone in milestones %}
+        <div class="milestone-card">
+            <div class="milestone-status">
+                {% if milestone.status == 'Completed' %}
+                <i class="fas fa-check-circle text-success"></i>
+                {% else %}
+                <i class="fas fa-clock text-warning"></i>
+                {% endif %}
+            </div>
+            
+            <div class="milestone-content">
+                <h4>{{ milestone.title }}</h4>
+                <p>{{ milestone.description }}</p>
+                
+                <div class="milestone-meta">
+                    {% if milestone.due_date %}
+                    <span class="milestone-date">
+                        <i class="fas fa-calendar"></i> Due: {{ milestone.due_date.strftime('%b %d, %Y') }}
+                    </span>
+                    {% endif %}
+                    <span class="milestone-status-badge status-{{ milestone.status.lower() }}">
+                        {{ milestone.status }}
+                    </span>
+                </div>
+            </div>
+            
+            {% if current_user.role in ['Admin', 'Manager'] %}
+            <div class="milestone-actions">
+                {% if milestone.status == 'Pending' %}
+                <button class="btn btn-sm btn-success" onclick="markMilestoneComplete({{ milestone.id }})">
+                    <i class="fas fa-check"></i> Mark Complete
+                </button>
+                {% endif %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">Edit Milestone</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteMilestone({{ milestone.id }})">Delete</a></li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        {% if milestones|length == 0 %}
+        <div class="empty-state">
+            <i class="fas fa-flag"></i>
+            <h4>No Milestones Yet</h4>
+            <p>Add milestones to track important project achievements and deadlines.</p>
+            {% if current_user.role in ['Admin', 'Manager'] %}
+            <a href="{{ url_for('create_milestone', project_id=project.id) }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add First Milestone
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+/* Timeline View Styles */
+.milestones-timeline {
+    padding: 20px 0;
+}
+
+.timeline-container {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.timeline-container::before {
+    content: '';
+    position: absolute;
+    left: 30px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, #007bff, #28a745);
+    border-radius: 2px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 40px;
+    padding-left: 80px;
+}
+
+.timeline-item.completed .timeline-marker {
+    background: #28a745;
+    color: white;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 15px;
+    top: 10px;
+    width: 30px;
+    height: 30px;
+    background: #007bff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 2;
+}
+
+.timeline-content {
+    background: var(--card-bg, white);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color, #e9ecef);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.timeline-header h4 {
+    margin: 0;
+    color: var(--text-primary, #2c3e50);
+    flex: 1;
+}
+
+.timeline-date {
+    color: var(--text-muted, #6c757d);
+    font-size: 0.9rem;
+    margin-left: 15px;
+}
+
+.timeline-description {
+    color: var(--text-secondary, #6c757d);
+    margin: 12px 0;
+    line-height: 1.6;
+}
+
+.timeline-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+}
+
+/* List View Styles */
+.milestones-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.milestone-card {
+    display: flex;
+    align-items: flex-start;
+    background: var(--card-bg, white);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 4px solid #007bff;
+    border: 1px solid var(--border-color, #e9ecef);
+}
+
+.milestone-status {
+    margin-right: 20px;
+    font-size: 1.5rem;
+    margin-top: 5px;
+}
+
+.milestone-content {
+    flex: 1;
+}
+
+.milestone-content h4 {
+    margin: 0 0 10px 0;
+    color: var(--text-primary, #2c3e50);
+}
+
+.milestone-content p {
+    margin: 0 0 15px 0;
+    color: var(--text-secondary, #6c757d);
+}
+
+.milestone-meta {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.milestone-date {
+    color: var(--text-muted, #6c757d);
+    font-size: 0.9rem;
+}
+
+.milestone-status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.milestone-actions {
+    margin-left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* View Toggle */
+.view-toggle .btn-group .btn {
+    border-color: var(--border-color, #dee2e6);
+    color: var(--text-primary, #495057);
+}
+
+.view-toggle .btn-group .btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --card-bg: #2d3748;
+        --border-color: #4a5568;
+        --text-primary: #e2e8f0;
+        --text-secondary: #a0aec0;
+        --text-muted: #718096;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .timeline-container::before {
+        left: 20px;
+    }
+    
+    .timeline-item {
+        padding-left: 60px;
+    }
+    
+    .timeline-marker {
+        left: 5px;
+        width: 25px;
+        height: 25px;
+        font-size: 12px;
+    }
+    
+    .timeline-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .timeline-date {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+}
+</style>
+
+<script>
+function switchView(viewType) {
+    const timelineView = document.getElementById('timeline-view');
+    const listView = document.getElementById('list-view');
+    const buttons = document.querySelectorAll('.view-toggle .btn');
+    
+    // Remove active class from all buttons
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    if (viewType === 'timeline') {
+        timelineView.style.display = 'block';
+        listView.style.display = 'none';
+        buttons[0].classList.add('active');
+    } else {
+        timelineView.style.display = 'none';
+        listView.style.display = 'block';
+        buttons[1].classList.add('active');
+    }
+    
+    // Save preference to localStorage
+    localStorage.setItem('milestoneViewPreference', viewType);
+}
+
+function markMilestoneComplete(milestoneId) {
+    if (confirm('Mark this milestone as complete?')) {
+        fetch(`/milestones/${milestoneId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error marking milestone as complete. Please try again.');
+            }
+        }).catch(error => {
+            alert('Network error. Please check your connection and try again.');
+        });
+    }
+}
+
+function deleteMilestone(milestoneId) {
+    if (confirm('Are you sure you want to delete this milestone?')) {
+        fetch(`/milestones/${milestoneId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting milestone. Please try again.');
+            }
+        }).catch(error => {
+            alert('Network error. Please check your connection and try again.');
+        });
+    }
+}
+
+// Initialize view preference on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const savedView = localStorage.getItem('milestoneViewPreference') || 'timeline';
+    switchView(savedView);
+});
+</script>
+{% endblock %}

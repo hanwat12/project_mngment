@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}User Dashboard - SLRD Project Management{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-overview">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card primary clickable-stat" onclick="showDetailModal('active_projects')">
+                <div class="stat-icon">
+                    <i class="fas fa-folder"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_projects }}</h3>
+                    <p>Assigned Projects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card success clickable-stat" onclick="showDetailModal('completed_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ completed_tasks }}</h3>
+                    <p>Completed Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card warning clickable-stat" onclick="showDetailModal('active_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ pending_tasks }}</h3>
+                    <p>Active Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card danger clickable-stat" onclick="showDetailModal('overdue_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ overdue_tasks }}</h3>
+                    <p>Overdue Tasks</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- My Tasks -->
+        <div class="col-md-8">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>My Tasks</h3>
+                    <p>Tasks assigned to you</p>
+                </div>
+                
+                <div class="tasks-list">
+                    {% for task in upcoming_deadlines[:5] %}
+                    <div class="task-item">
+                        <div class="task-content">
+                            <h5>{{ task.title }}</h5>
+                            <p>{{ task.description[:100] }}...</p>
+                            <small class="text-muted">Project: {{ task.project.title }}</small>
+                        </div>
+                        
+                        <div class="task-meta">
+                            <span class="priority priority-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                            <span class="status status-{{ task.status.lower().replace(' ', '-') }}">{{ task.status }}</span>
+                            {% if task.deadline %}
+                            <span class="deadline">Due: {{ task.deadline.strftime('%b %d') }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="task-actions">
+                            <a href="{{ url_for('view_task', task_id=task.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                            {% if task.status != 'Completed' %}
+                            <form method="POST" action="{{ url_for('complete_task', task_id=task.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-success">Mark Complete</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if upcoming_deadlines|length == 0 %}
+                    <div class="empty-state">
+                        <i class="fas fa-tasks"></i>
+                        <h4>No Tasks Assigned</h4>
+                        <p>You will see tasks here once they are assigned to you</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer">
+                    <a href="{{ url_for('tasks_list') }}" class="view-all-link">
+                        View All Tasks <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- My Projects -->
+        <div class="col-md-4">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>My Projects</h3>
+                    <p>Projects you're involved in</p>
+                </div>
+                
+                <div class="projects-list">
+                    {% for project in recent_projects %}
+                    <div class="project-summary">
+                        <h5>{{ project.title }}</h5>
+                        <div class="progress-info">
+                            <span>{{ project.progress }}% Complete</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+                        </div>
+                        <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-sm btn-outline-primary mt-2">View Project</a>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if recent_projects|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-folder-open"></i>
+                        <p>No projects assigned</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div id="taskDetailModal" class="modal" style="display: none;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Tasks</h5>
+                <button type="button" class="close" onclick="hideTaskModal()">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.clickable-stat {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.clickable-stat:hover {
+    transform: translateY(-2px);
+}
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-dialog {
+    max-width: 600px;
+    margin: 50px auto;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.close {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #aaa;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.task-list-item {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+}
+
+.task-list-item:hover {
+    background-color: #f8f9fa;
+}
+
+.task-list-item:last-child {
+    border-bottom: none;
+}
+</style>
+
+<script>
+function navigateToTask(taskId) {
+    window.location.href = `/tasks/${taskId}`;
+}
+
+function showDetailModal(type) {
+    const modal = document.getElementById('taskDetailModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    // Set title based on type
+    const titles = {
+        'completed_tasks': 'Completed Tasks',
+        'active_tasks': 'Active Tasks',
+        'active_projects': 'Active Projects',
+        'overdue_tasks': 'Overdue Tasks'
+    };
+    
+    modalTitle.textContent = titles[type] || 'Tasks';
+    modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    // Fetch task details
+    fetch(`/api/dashboard/${type}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.tasks && data.tasks.length > 0) {
+                modalBody.innerHTML = data.tasks.map(task => `
+                    <div class="task-list-item" onclick="navigateToTask(${task.id})">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6>${task.title}</h6>
+                                <small class="text-muted">${task.project_title}</small>
+                                <div class="mt-1">
+                                    <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
+                                    <span class="badge badge-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span>
+                                    ${task.assigned_user ? `<small class="text-muted ml-2"><i class="fas fa-user"></i> ${task.assigned_user}</small>` : ''}
+                                </div>
+                            </div>
+                            <small class="text-muted">${task.deadline || 'No deadline'}</small>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                modalBody.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No ${type.replace('_', ' ')} found</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            modalBody.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading tasks</p>
+                </div>
+            `;
+        });
+}
+
+function hideTaskModal() {
+    document.getElementById('taskDetailModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('taskDetailModal');
+    if (event.target == modal) {
+        hideTaskModal();
+    }
+}
+</script>
+
+{% endblock %}

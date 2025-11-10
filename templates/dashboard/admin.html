@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - SLRD Project Management{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+<div class="dashboard-overview">
+    <!-- Statistics Cards -->
+    <div class="row mb-4 dashboard-stats">
+        <div class="col-md-2">
+            <div class="stat-card primary clickable-stat" onclick="showDetailModal('active_projects')">
+                <div class="stat-icon">
+                    <i class="fas fa-folder"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ active_projects }}</h3>
+                    <p>Active Projects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card success clickable-stat" onclick="showDetailModal('completed_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ completed_tasks }}</h3>
+                    <p>Completed Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card warning clickable-stat" onclick="showDetailModal('active_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ pending_tasks }}</h3>
+                    <p>Active Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card danger clickable-stat" onclick="showDetailModal('overdue_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ overdue_tasks }}</h3>
+                    <p>Overdue Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card info clickable-stat" onclick="showDetailModal('pending_approvals')">
+                <div class="stat-icon">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ pending_approvals }}</h3>
+                    <p>Pending Approvals</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card secondary clickable-stat" onclick="showDetailModal('task_outcomes')">
+                <div class="stat-icon">
+                    <i class="fas fa-target"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_outcomes }}</h3>
+                    <p>Task Outcomes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Projects Overview -->
+        <div class="col-md-8">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Projects Overview</h3>
+                    <p>Manage and track your active projects</p>
+                    <a href="{{ url_for('create_project') }}" class="btn btn-primary">New Project</a>
+                </div>
+                
+                <div class="projects-list">
+                    {% for project in recent_projects %}
+                    <div class="project-item">
+                        <h4>{{ project.title }}</h4>
+                        <p>{{ project.description[:100] }}...</p>
+                        
+                        <div class="project-meta">
+                            <div class="progress-info">
+                                <span>Progress</span>
+                                <span>{{ project.progress }}%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="project-details">
+                            <span class="status in-progress">{{ project.status }}</span>
+                            <span class="tasks">Tasks: {{ project.tasks.count() }}</span>
+                            <span class="team">Team: {{ project.assigned_users|length }}</span>
+                            <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">Discussion</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if recent_projects|length == 0 %}
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h4>No Projects Yet</h4>
+                        <p>Create your first project to get started</p>
+                        <a href="{{ url_for('create_project') }}" class="btn btn-primary">Create Project</a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer">
+                    <a href="{{ url_for('projects_list') }}" class="view-all-link">
+                        View All Projects <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upcoming Deadlines -->
+        <div class="col-md-4">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Upcoming Deadlines</h3>
+                    <p>Tasks due soon</p>
+                </div>
+                
+                <div class="deadlines-list">
+                    {% for task in upcoming_deadlines %}
+                    <div class="deadline-item clickable-deadline" onclick="navigateToTask({{ task.id }})">
+                        <div class="deadline-icon">
+                            {% if task.is_overdue() %}
+                            <i class="fas fa-exclamation-triangle text-danger"></i>
+                            {% else %}
+                            <i class="fas fa-clock text-warning"></i>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="deadline-info">
+                            <h5>{{ task.title }}</h5>
+                            <p class="task-project">{{ task.project.title }}</p>
+                            
+                            <div class="assignee-info">
+                                {% if task.assigned_user %}
+                                <span class="assignee">
+                                    <i class="fas fa-user"></i> {{ task.assigned_user.username }}
+                                </span>
+                                {% else %}
+                                <span class="assignee unassigned">
+                                    <i class="fas fa-user-slash"></i> Unassigned
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="deadline-meta">
+                                <span class="deadline-date">{{ task.deadline.strftime('%b %d, %Y') }}</span>
+                                {% if task.is_overdue() %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                    {% set days_remaining = (task.deadline - task.deadline.__class__.today()).days %}
+                                    {% if days_remaining <= 1 %}
+                                        <span class="badge bg-warning">{{ 'Today' if days_remaining == 0 else 'Tomorrow' }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info">{{ days_remaining }} days</span>
+                                    {% endif %}
+                                {% endif %}
+                                <span class="priority priority-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if upcoming_deadlines|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-calendar-check"></i>
+                        <p>No upcoming deadlines</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div id="taskDetailModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Task Details</h3>
+            <span class="close" onclick="hideTaskModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Content will be loaded dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideTaskModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.clickable-stat {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.clickable-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.clickable-deadline {
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.clickable-deadline:hover {
+    background-color: var(--hover-bg, #f8f9fa);
+    transform: translateX(3px);
+}
+
+.deadline-item {
+    display: flex;
+    align-items: flex-start;
+    border-left: 3px solid transparent;
+}
+
+.deadline-item:hover {
+    border-left-color: #007bff;
+}
+
+.deadline-icon {
+    margin-right: 12px;
+    margin-top: 3px;
+    font-size: 1.1rem;
+}
+
+.deadline-info {
+    flex: 1;
+}
+
+.deadline-info h5 {
+    margin: 0 0 4px 0;
+    color: var(--text-primary, #2c3e50);
+    font-size: 0.95rem;
+}
+
+.task-project {
+    margin: 0 0 8px 0;
+    color: var(--text-muted, #6c757d);
+    font-size: 0.8rem;
+}
+
+.assignee-info {
+    margin: 6px 0;
+}
+
+.assignee {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #495057);
+}
+
+.assignee.unassigned {
+    color: var(--text-muted, #dc3545);
+}
+
+.deadline-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.deadline-date {
+    font-size: 0.75rem;
+    color: var(--text-muted, #6c757d);
+}
+
+.priority {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.priority-high {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.priority-medium {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+.priority-low {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.modal {
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+    display: none;
+}
+
+.modal-open {
+    overflow: hidden !important;
+}
+
+.modal.show {
+    display: block !important;
+}
+
+.modal-content {
+    background-color: var(--card-bg, white);
+    margin: 5% auto;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color, #e9ecef);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.close {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-muted, #aaa);
+}
+
+.close:hover {
+    color: var(--text-primary, #000);
+}
+
+.task-list-item {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+    cursor: pointer;
+}
+
+.task-list-item:hover {
+    background-color: var(--hover-bg, #f8f9fa);
+}
+
+.task-list-item:last-child {
+    border-bottom: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --card-bg: #2d3748;
+        --border-color: #4a5568;
+        --text-primary: #e2e8f0;
+        --text-secondary: #a0aec0;
+        --text-muted: #718096;
+        --hover-bg: #4a5568;
+    }
+}
+</style>
+
+<script>
+function navigateToTask(taskId) {
+    window.location.href = `/tasks/${taskId}`;
+}
+
+function showDetailModal(type) {
+    const modal = document.getElementById('taskDetailModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    // Set title based on type
+    const titles = {
+        'completed_tasks': 'Completed Tasks',
+        'active_tasks': 'Active Tasks',
+        'pending_tasks': 'Active Tasks', 
+        'overdue_tasks': 'Overdue Tasks',
+        'pending_approvals': 'Pending Approvals'
+    };
+    
+    modalTitle.textContent = titles[type] || 'Tasks';
+    modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    
+    // Show modal properly
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
+    
+    // Fetch task details
+    fetch(`/api/dashboard/${type}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.tasks && data.tasks.length > 0) {
+                modalBody.innerHTML = data.tasks.map(task => {
+                    let taskHtml = `
+                        <div class="task-list-item" onclick="navigateToTask(${task.id})">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6>${task.title}</h6>
+                                    <small class="text-muted">${task.project_title}</small>
+                                    <div class="mt-1">
+                                        <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
+                                        <span class="badge badge-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span>
+                                        ${task.assigned_user ? `<small class="text-muted ml-2"><i class="fas fa-user"></i> ${task.assigned_user}</small>` : ''}
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <small class="text-muted mr-2">${task.deadline || 'No deadline'}</small>`;
+                    
+                    // Add three-dot menu for active tasks
+                    if (type === 'active_tasks' && task.status !== 'Completed') {
+                        taskHtml += `
+                                    <div class="dropdown" onclick="event.stopPropagation();">
+                                        <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="#" onclick="showReassignModal(${task.id})">
+                                                <i class="fas fa-user-edit"></i> Reassign Task
+                                            </a></li>
+                                        </ul>
+                                    </div>`;
+                    }
+                    
+                    // Add approve/reject buttons for pending approvals
+                    if (type === 'pending_approvals') {
+                        taskHtml += `
+                                    <div class="btn-group" onclick="event.stopPropagation();">
+                                        <button class="btn btn-sm btn-success" onclick="approveItem('${task.item_type}', ${task.item_id})">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="rejectItem('${task.item_type}', ${task.item_id})">
+                                            <i class="fas fa-times"></i> Reject
+                                        </button>
+                                    </div>`;
+                    }
+                    
+                    taskHtml += `
+                                </div>
+                            </div>
+                        </div>`;
+                    
+                    return taskHtml;
+                }).join('');
+            } else {
+                modalBody.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No ${type.replace('_', ' ')} found</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            modalBody.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading tasks</p>
+                </div>
+            `;
+        });
+}
+
+function hideTaskModal() {
+    const modal = document.getElementById('taskDetailModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = ''; // Restore body scroll
+    document.body.classList.remove('modal-open');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('taskDetailModal');
+    if (modal && event.target === modal) {
+        hideTaskModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('taskDetailModal');
+        if (modal && modal.style.display === 'block') {
+            hideTaskModal();
+        }
+    }
+});
+
+// Approve/Reject functionality
+function approveItem(itemType, itemId) {
+    fetch(`/api/approve/${itemType}/${itemId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${itemType} approved successfully`);
+            showDetailModal('pending_approvals'); // Refresh the modal
+        } else {
+            alert(data.error || 'Failed to approve');
+        }
+    })
+    .catch(error => {
+        alert('Error approving item');
+        console.error('Error:', error);
+    });
+}
+
+function rejectItem(itemType, itemId) {
+    fetch(`/api/reject/${itemType}/${itemId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${itemType} rejected`);
+            showDetailModal('pending_approvals'); // Refresh the modal
+        } else {
+            alert(data.error || 'Failed to reject');
+        }
+    })
+    .catch(error => {
+        alert('Error rejecting item');
+        console.error('Error:', error);
+    });
+}
+
+// Task reassignment functionality
+function showReassignModal(taskId) {
+    // Fetch team members
+    fetch('/api/team_members')
+        .then(response => response.json())
+        .then(data => {
+            if (data.team_members && data.team_members.length > 0) {
+                const selectOptions = data.team_members.map(member => 
+                    `<option value="${member.id}">${member.username} (${member.role})</option>`
+                ).join('');
+                
+                const modalHTML = `
+                    <div id="reassignModal" style="display: block; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+                        <div style="background-color: white; margin: 10% auto; padding: 30px; border-radius: 12px; width: 450px; max-width: 95%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h5 style="margin: 0;">Reassign Task</h5>
+                                <button onclick="closeReassignModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                            </div>
+                            <div class="form-group">
+                                <label for="reassignSelect" style="font-weight: 500; margin-bottom: 8px; display: block;">Select team member:</label>
+                                <select id="reassignSelect" class="form-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                                    <option value="">Choose team member...</option>
+                                    ${selectOptions}
+                                </select>
+                            </div>
+                            <div style="margin-top: 20px; text-align: right;">
+                                <button class="btn btn-secondary me-2" onclick="closeReassignModal()">Cancel</button>
+                                <button class="btn btn-primary" onclick="reassignTask(${taskId})">Reassign</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                document.body.style.overflow = 'hidden';
+            } else {
+                alert('No team members available for reassignment');
+            }
+        })
+        .catch(error => {
+            alert('Error loading team members');
+            console.error('Error:', error);
+        });
+}
+
+function closeReassignModal() {
+    const modal = document.getElementById('reassignModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+// Add click event to prevent modal from closing when clicking inside content
+document.addEventListener('click', function(event) {
+    const reassignModal = document.getElementById('reassignModal');
+    if (reassignModal && event.target === reassignModal) {
+        closeReassignModal();
+    }
+});
+
+function reassignTask(taskId) {
+    const newUserId = document.getElementById('reassignSelect').value;
+    if (!newUserId) {
+        alert('Please select a team member');
+        return;
+    }
+    
+    fetch(`/reassign_task/${taskId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `assigned_to_id=${newUserId}`
+    })
+    .then(response => {
+        if (response.ok) {
+            alert('Task reassigned successfully');
+            closeReassignModal();
+            location.reload(); // Refresh the page to show updates
+        } else {
+            alert('Error reassigning task');
+        }
+    })
+    .catch(error => {
+        alert('Error reassigning task');
+        console.error('Error:', error);
+    });
+}
+</script>
+
+{% endblock %}

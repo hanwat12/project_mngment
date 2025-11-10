@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks Overview{% endblock %}
+
+{% block content %}
+<div class="tasks-overview">
+    <div class="content-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Tasks Overview</h2>
+            <p class="text-muted">Manage and track your tasks</p>
+        </div>
+        <button class="btn btn-dark">
+            <i class="fas fa-plus"></i> New Task
+        </button>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs mb-4">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" onclick="filterTasks('all')">All Tasks</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="filterTasks('in-progress')">In Progress</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="filterTasks('pending')">Pending</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="filterTasks('completed')">Completed</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="filterTasks('overdue')">Overdue</a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="tasks-container">
+        {% for task in tasks %}
+        <div class="task-card" data-status="{{ task.status.lower().replace(' ', '-') }}" data-overdue="{{ 'true' if task.is_overdue() else 'false' }}">
+            <div class="task-header">
+                <div class="task-status-icon">
+                    {% if task.status == 'Completed' %}
+                        <i class="fas fa-check-circle text-success"></i>
+                    {% elif task.status == 'In Progress' %}
+                        <i class="fas fa-clock text-warning"></i>
+                    {% elif task.is_overdue() %}
+                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                    {% else %}
+                        <i class="fas fa-circle text-secondary"></i>
+                    {% endif %}
+                </div>
+                <div class="task-info">
+                    <h4>{{ task.title }}</h4>
+                    <div class="task-meta">
+                        <span class="project-name">Project: {{ task.project.title }}</span>
+                        {% if task.deadline %}
+                        <span class="due-date">Due: {{ task.deadline.strftime('%m/%d/%Y') }}</span>
+                        {% endif %}
+                        {% if task.assigned_user %}
+                        <span class="assigned-to">Assigned to: {{ task.assigned_user.username }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="task-actions dropdown">
+                    <button class="btn btn-link text-muted" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('view_task', task_id=task.id) }}">View Details</a></li>
+                        {% if current_user.role in ['Admin', 'Manager'] %}
+                        <li><a class="dropdown-item" href="{{ url_for('edit_task', task_id=task.id) }}">Edit Task</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="showReassignModal({{ task.id }})">Reassign Task</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteTask({{ task.id }}, '{{ task.title }}')">Delete Task</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="task-badges">
+                {% if task.priority == 'High' %}
+                <span class="badge priority-high">★ High</span>
+                {% elif task.priority == 'Medium' %}
+                <span class="badge priority-medium">Medium</span>
+                {% else %}
+                <span class="badge priority-low">Low</span>
+                {% endif %}
+
+                {% if task.status == 'Completed' %}
+                <span class="badge status-completed">completed</span>
+                {% elif task.status == 'In Progress' %}
+                <span class="badge status-in-progress">in progress</span>
+                {% else %}
+                <span class="badge status-pending">{{ task.status.lower() }}</span>
+                {% endif %}
+
+                {% if task.skill_match_percentage > 0 %}
+                <span class="badge skill-match">★ Skill Match: {{ task.skill_match_percentage }}%</span>
+                {% endif %}
+            </div>
+
+            {% if task.status != 'Completed' %}
+            <div class="task-progress">
+                <div class="progress-info">
+                    <span>Progress</span>
+                    <span class="progress-percentage">{{ '100' if task.status == 'Completed' else ('60' if task.status == 'In Progress' else '0') }}%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" style="width: {{ '100' if task.status == 'Completed' else ('60' if task.status == 'In Progress' else '0') }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Reassign Task Modal -->
+<div class="modal fade" id="reassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="reassignForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reassign Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Assign to:</label>
+                        <select name="new_assignee_id" class="form-select" required>
+                            <option value="">Select user...</option>
+                            {% if current_user.role == 'Admin' %}
+                                {% for user in User.query.all() %}
+                                <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+                                {% endfor %}
+                            {% else %}
+                                {% for user in current_user.managed_users %}
+                                <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Reassign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.tasks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.task-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    border-left: 4px solid #28a745;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.task-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.task-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.task-status-icon {
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.task-info {
+    flex: 1;
+}
+
+.task-info h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.task-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.priority-high {
+    background-color: #dc3545;
+    color: white;
+}
+
+.priority-medium {
+    background-color: #6c757d;
+    color: white;
+}
+
+.priority-low {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.status-completed {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-in-progress {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.status-pending {
+    background-color: #6c757d;
+    color: white;
+}
+
+.skill-match {
+    background-color: #ff8c00;
+    color: white;
+}
+
+.task-progress {
+    margin-top: 12px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.progress {
+    height: 6px;
+    background-color: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, #28a745, #20c997);
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.filter-tabs .nav-pills .nav-link {
+    color: #6c757d;
+    background: transparent;
+    border-radius: 20px;
+    padding: 8px 16px;
+    margin-right: 8px;
+}
+
+.filter-tabs .nav-pills .nav-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.task-card[data-overdue="true"] {
+    border-left-color: #dc3545;
+}
+
+.task-card[data-status="completed"] {
+    border-left-color: #28a745;
+}
+
+.task-card[data-status="in-progress"] {
+    border-left-color: #ffc107;
+}
+</style>
+
+<script>
+function filterTasks(status) {
+    const cards = document.querySelectorAll('.task-card');
+    const navLinks = document.querySelectorAll('.filter-tabs .nav-link');
+    
+    // Update active tab
+    navLinks.forEach(link => link.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    cards.forEach(card => {
+        const cardStatus = card.dataset.status;
+        const isOverdue = card.dataset.overdue === 'true';
+        
+        let show = false;
+        switch(status) {
+            case 'all':
+                show = true;
+                break;
+            case 'overdue':
+                show = isOverdue;
+                break;
+            default:
+                show = cardStatus === status;
+        }
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+function showReassignModal(taskId) {
+    const form = document.getElementById('reassignForm');
+    form.action = `/tasks/${taskId}/reassign`;
+    new bootstrap.Modal(document.getElementById('reassignModal')).show();
+}
+
+// Show skill match percentage when user is selected for reassignment
+document.getElementById('reassignUserSelect').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const skillMatchInfo = document.getElementById('skillMatchInfo');
+    const skillMatchText = document.getElementById('skillMatchText');
+    
+    if (this.value && selectedOption.dataset.skills) {
+        try {
+            const userSkills = JSON.parse(selectedOption.dataset.skills);
+            if (userSkills.length > 0) {
+                // Basic skill matching - you can enhance this logic
+                const matchPercentage = Math.floor(Math.random() * 40) + 60; // Demo calculation
+                skillMatchText.textContent = `Skill Match: ${matchPercentage}%`;
+                skillMatchInfo.style.display = 'block';
+            } else {
+                skillMatchInfo.style.display = 'none';
+            }
+        } catch (e) {
+            skillMatchInfo.style.display = 'none';
+        }
+    } else {
+        skillMatchInfo.style.display = 'none';
+    }
+});
+
+function deleteTask(taskId, taskTitle) {
+    if (confirm(`Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`)) {
+        fetch(`/tasks/${taskId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting task');
+            }
+        });
+    }
+}
+
+function approveTask(taskId) {
+    if (confirm('Approve this task completion?')) {
+        fetch(`/tasks/${taskId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function rejectTask(taskId) {
+    if (confirm('Reject this task completion? Task will return to in progress.')) {
+        fetch(`/tasks/${taskId}/reject`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function showUserTasks(userId) {
+    fetch(`/api/user/${userId}/tasks`)
+        .then(response => response.json())
+        .then(data => {
+            showUserTasksModal(data);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function showUserTasksModal(data) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>${data.user.username}'s Tasks</h3>
+                <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="user-tasks-list">
+                    ${data.tasks.map(task => `
+                        <div class="task-item">
+                            <h6><a href="/tasks/${task.id}">${task.title}</a></h6>
+                            <p>Project: ${task.project_title}</p>
+                            <div class="task-meta">
+                                <span class="status-badge">${task.status}</span>
+                                ${task.deadline ? `<small>Due: ${task.deadline}</small>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+function deleteTask(taskId, taskTitle) {
+    if (confirm(`Are you sure you want to delete task "${taskTitle}"? This action cannot be undone.`)) {
+        fetch(`/tasks/${taskId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting task');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

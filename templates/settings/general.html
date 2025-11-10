@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}General Settings{% endblock %}
+{% block page_title %}General Settings{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header mb-4">
+        <h2 class="text-white">General Settings</h2>
+        <p class="text-light">Manage system settings and configurations</p>
+    </div>
+
+    <div class="settings-grid">
+        <!-- Add New User Section -->
+        <div class="setting-card modern-card">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h4 class="text-primary">Add New User</h4>
+                    <p class="text-muted">Create new user accounts for your team</p>
+                </div>
+                <a href="{{ url_for('settings_add_user') }}" class="btn btn-primary modern-btn">
+                    <i class="fas fa-user-plus"></i> Add User
+                </a>
+            </div>
+        </div>
+
+        <!-- User Types Section -->
+        <div class="setting-card modern-card">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h4 class="text-success">User Types</h4>
+                    <p class="text-muted">Manage available user roles and types</p>
+                </div>
+                <a href="{{ url_for('create_user_type') }}" class="btn btn-success modern-btn">
+                    <i class="fas fa-plus"></i> Create User Type
+                </a>
+            </div>
+        </div>
+
+        <!-- Your Skills Section -->
+        <div class="setting-card modern-card">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h4 class="text-warning">Your Skills</h4>
+                    <p class="text-muted">Manage your professional skills for better task matching</p>
+                </div>
+                <a href="{{ url_for('manage_skills') }}" class="btn btn-warning modern-btn">
+                    <i class="fas fa-star"></i> Manage Skills
+                </a>
+            </div>
+        </div>
+
+        <!-- Assign Rights Section -->
+        <div class="setting-card modern-card">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h4 class="text-danger">Assign Rights</h4>
+                    <p class="text-muted">Manage user permissions and access rights</p>
+                </div>
+                <a href="{{ url_for('team_list') }}" class="btn btn-danger modern-btn">
+                    <i class="fas fa-shield-alt"></i> Manage Permissions
+                </a>
+            </div>
+        </div>
+        
+        <!-- User Hierarchy Section -->
+        <div class="setting-card modern-card">
+            <div class="setting-header">
+                <div class="setting-info">
+                    <h4 class="text-info">User Hierarchy</h4>
+                    <p class="text-muted">View team structure and reporting relationships</p>
+                </div>
+                <button class="btn btn-info modern-btn" onclick="showHierarchyModal()">
+                    <i class="fas fa-sitemap"></i> View Hierarchy
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hierarchy Modal -->
+<div id="hierarchyModal" class="modal" style="display: none;">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h3>User Hierarchy</h3>
+            <span class="close" onclick="hideHierarchyModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="hierarchyTree">
+                Loading hierarchy...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showHierarchyModal() {
+    document.getElementById('hierarchyModal').style.display = 'block';
+    loadHierarchy();
+}
+
+function hideHierarchyModal() {
+    document.getElementById('hierarchyModal').style.display = 'none';
+}
+
+function loadHierarchy() {
+    fetch('/api/user-hierarchy')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('hierarchyTree').innerHTML = generateHierarchyHTML(data);
+        })
+        .catch(error => {
+            document.getElementById('hierarchyTree').innerHTML = '<p>Error loading hierarchy</p>';
+        });
+}
+
+function generateHierarchyHTML(users) {
+    let html = '<div class="hierarchy-tree">';
+    
+    // Group users by role
+    const admins = users.filter(u => u.role === 'Admin');
+    const managers = users.filter(u => u.role === 'Manager');
+    const regularUsers = users.filter(u => u.role === 'User');
+    
+    html += '<div class="hierarchy-level">';
+    html += '<h5 class="hierarchy-title">Administrators</h5>';
+    admins.forEach(user => {
+        html += `<div class="hierarchy-node admin-node">${user.username}</div>`;
+    });
+    html += '</div>';
+    
+    html += '<div class="hierarchy-level">';
+    html += '<h5 class="hierarchy-title">Managers</h5>';
+    managers.forEach(user => {
+        html += `<div class="hierarchy-node manager-node">${user.username}</div>`;
+    });
+    html += '</div>';
+    
+    html += '<div class="hierarchy-level">';
+    html += '<h5 class="hierarchy-title">Users</h5>';
+    regularUsers.forEach(user => {
+        html += `<div class="hierarchy-node user-node">${user.username}</div>`;
+    });
+    html += '</div>';
+    
+    html += '</div>';
+    return html;
+}
+</script>
+
+<style>
+.settings-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 30px;
+}
+
+.modern-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.modern-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modern-btn {
+    border-radius: 25px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.modern-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.hierarchy-tree {
+    padding: 20px;
+}
+
+.hierarchy-level {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.hierarchy-title {
+    color: #495057;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.hierarchy-node {
+    display: inline-block;
+    padding: 8px 15px;
+    margin: 5px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.admin-node {
+    background: #dc3545;
+    color: white;
+}
+
+.manager-node {
+    background: #ffc107;
+    color: #212529;
+}
+
+.user-node {
+    background: #28a745;
+    color: white;
+}
+</style>
+{% endblock %}

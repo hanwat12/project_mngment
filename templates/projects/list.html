@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Projects - SLRD Project Management{% endblock %}
+{% block page_title %}Projects{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>All Projects</h2>
+            <p class="text-muted">Manage and track your projects</p>
+        </div>
+        {% if current_user.role in ['Admin', 'Manager'] %}
+        <a href="{{ url_for('create_project') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Project
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="projects-grid">
+    {% for project in projects %}
+    <div class="project-card">
+        <div class="project-header">
+            <h4>{{ project.title }}</h4>
+            <div class="project-status">
+                <span class="status-badge status-{{ project.status.lower().replace(' ', '-') }}">
+                    {{ project.status }}
+                </span>
+            </div>
+        </div>
+        
+        <p class="project-description">{{ project.description[:150] }}...</p>
+        
+        <div class="project-progress">
+            <div class="d-flex justify-content-between mb-1">
+                <span>Progress</span>
+                <span>{{ project.progress }}%</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+            </div>
+        </div>
+        
+        <div class="project-meta">
+            <div class="meta-item">
+                <i class="fas fa-tasks"></i>
+                <span>{{ project.tasks.count() }} Tasks</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-users"></i>
+                <span>{{ project.assigned_users|length }} Members</span>
+            </div>
+            {% if project.deadline %}
+            <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>Due {{ project.deadline.strftime('%b %d, %Y') }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="project-actions">
+            <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-outline-primary btn-sm">
+                View Details
+            </a>
+            {% if current_user.role in ['Admin', 'Manager'] and project.created_by_id == current_user.id %}
+            <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-outline-secondary btn-sm">
+                Edit
+            </a>
+            {% endif %}
+        </div>
+        
+        {% if project.is_overdue() %}
+        <div class="project-alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Overdue</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    
+    {% if projects|length == 0 %}
+    <div class="empty-state-large">
+        <i class="fas fa-folder-open"></i>
+        <h3>No Projects Found</h3>
+        <p>You don't have access to any projects yet.</p>
+        {% if current_user.role in ['Admin', 'Manager'] %}
+        <a href="{{ url_for('create_project') }}" class="btn btn-primary">Create Your First Project</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

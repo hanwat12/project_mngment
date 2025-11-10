@@ -1,0 +1,572 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard - SLRD Project Management{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+<div class="dashboard-overview">
+    <!-- Statistics Cards -->
+    <div class="row mb-4 dashboard-stats">
+        <div class="col-md-2">
+            <div class="stat-card primary clickable-stat" onclick="showDetailModal('active_projects')">
+                <div class="stat-icon">
+                    <i class="fas fa-folder"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ active_projects }}</h3>
+                    <p>Active Projects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card success clickable-stat" onclick="showDetailModal('completed_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ completed_tasks }}</h3>
+                    <p>Completed Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card warning clickable-stat" onclick="showDetailModal('active_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ pending_tasks }}</h3>
+                    <p>Active Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card danger clickable-stat" onclick="showDetailModal('overdue_tasks')">
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ overdue_tasks }}</h3>
+                    <p>Overdue Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card info clickable-stat" onclick="showDetailModal('pending_approvals')">
+                <div class="stat-icon">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ pending_approvals }}</h3>
+                    <p>Pending Approvals</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stat-card secondary clickable-stat" onclick="showDetailModal('task_outcomes')">
+                <div class="stat-icon">
+                    <i class="fas fa-target"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_outcomes }}</h3>
+                    <p>Task Outcomes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Projects Overview -->
+        <div class="col-md-8">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Projects Overview</h3>
+                    <p>Manage and track your active projects</p>
+                    <a href="{{ url_for('create_project') }}" class="btn btn-primary">New Project</a>
+                </div>
+                
+                <div class="projects-list">
+                    {% for project in recent_projects %}
+                    <div class="project-item">
+                        <h4>{{ project.title }}</h4>
+                        <p>{{ project.description[:100] }}...</p>
+                        
+                        <div class="project-meta">
+                            <div class="progress-info">
+                                <span>Progress</span>
+                                <span>{{ project.progress }}%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="project-details">
+                            <span class="status in-progress">{{ project.status }}</span>
+                            <span class="tasks">Tasks: {{ project.tasks.count() }}</span>
+                            <span class="team">Team: {{ project.assigned_users|length }}</span>
+                            <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">Discussion</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if recent_projects|length == 0 %}
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h4>No Projects Assigned</h4>
+                        <p>You will see projects here once they are assigned to you</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer">
+                    <a href="{{ url_for('projects_list') }}" class="view-all-link">
+                        View All Projects <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upcoming Deadlines -->
+        <div class="col-md-4">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Upcoming Deadlines</h3>
+                    <p>Tasks due soon</p>
+                </div>
+                
+                <div class="deadlines-list">
+                    {% for task in upcoming_deadlines %}
+                    <div class="deadline-item clickable-deadline" onclick="navigateToTask({{ task.id }})">
+                        <div class="deadline-icon">
+                            {% if task.is_overdue() %}
+                            <i class="fas fa-exclamation-triangle text-danger"></i>
+                            {% else %}
+                            <i class="fas fa-clock text-warning"></i>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="deadline-info">
+                            <h5>{{ task.title }}</h5>
+                            <p class="task-project">{{ task.project.title }}</p>
+                            
+                            <div class="assignee-info">
+                                {% if task.assigned_user %}
+                                <span class="assignee">
+                                    <i class="fas fa-user"></i> {{ task.assigned_user.username }}
+                                </span>
+                                {% else %}
+                                <span class="assignee unassigned">
+                                    <i class="fas fa-user-slash"></i> Unassigned
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="deadline-meta">
+                                <span class="deadline-date">{{ task.deadline.strftime('%b %d, %Y') }}</span>
+                                {% if task.is_overdue() %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                    {% set days_remaining = (task.deadline - task.deadline.__class__.today()).days %}
+                                    {% if days_remaining <= 1 %}
+                                        <span class="badge bg-warning">{{ 'Today' if days_remaining == 0 else 'Tomorrow' }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info">{{ days_remaining }} days</span>
+                                    {% endif %}
+                                {% endif %}
+                                <span class="priority priority-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if upcoming_deadlines|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-calendar-check"></i>
+                        <p>No upcoming deadlines</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div id="taskDetailModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Task Details</h3>
+            <span class="close" onclick="hideTaskModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Content will be loaded dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideTaskModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function navigateToTask(taskId) {
+    window.location.href = `/tasks/${taskId}`;
+}
+
+function showDetailModal(type) {
+    const modal = document.getElementById('taskDetailModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    // Set title based on type
+    const titles = {
+        'completed_tasks': 'Completed Tasks',
+        'active_tasks': 'Active Tasks',
+        'pending_tasks': 'Active Tasks', 
+        'overdue_tasks': 'Overdue Tasks',
+        'pending_approvals': 'Pending Approvals'
+    };
+    
+    modalTitle.textContent = titles[type] || 'Tasks';
+    modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    
+    // Show modal
+    modal.style.display = 'block';
+    
+    // Fetch task details
+    fetch(`/api/dashboard/${type}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.tasks && data.tasks.length > 0) {
+                modalBody.innerHTML = data.tasks.map(task => `
+                    <div class="task-list-item" onclick="navigateToTask(${task.id})">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6>${task.title}</h6>
+                                <small class="text-muted">${task.project_title}</small>
+                                <div class="mt-1">
+                                    <span class="badge badge-${task.priority.toLowerCase()}">${task.priority}</span>
+                                    <span class="badge badge-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span>
+                                    ${task.assigned_user ? `<small class="text-muted ml-2"><i class="fas fa-user"></i> ${task.assigned_user}</small>` : ''}
+                                </div>
+                            </div>
+                            <small class="text-muted">${task.deadline || 'No deadline'}</small>
+                        </div>
+                        ${type === 'pending_approvals' ? `
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); approveItem(${task.id}, '${task.type}')">Approve</button>
+                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); rejectItem(${task.id}, '${task.type}')">Mark Not Complete</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } else {
+                modalBody.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No ${type.replace('_', ' ')} found</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            modalBody.innerHTML = `
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading tasks</p>
+                </div>
+            `;
+        });
+}
+
+function hideTaskModal() {
+    document.getElementById('taskDetailModal').style.display = 'none';
+}
+
+function approveItem(id, type) {
+    fetch(`/api/approve/${type}/${id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Refresh the modal content
+            showDetailModal('pending_approvals');
+            // Show success message
+            alert('Item approved successfully!');
+        } else {
+            alert('Error approving item: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error approving item');
+    });
+}
+
+function rejectItem(id, type) {
+    fetch(`/api/reject/${type}/${id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Refresh the modal content
+            showDetailModal('pending_approvals');
+            // Show success message
+            alert('Item marked as not complete successfully!');
+        } else {
+            alert('Error marking item as not complete: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error marking item as not complete');
+    });
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('taskDetailModal');
+    if (event.target == modal) {
+        hideTaskModal();
+    }
+}
+</script>
+
+<style>
+/* Dashboard Statistics Equal Sizing */
+.dashboard-stats .stat-card {
+    height: 120px;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.dashboard-stats .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.dashboard-stats .stat-card.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.dashboard-stats .stat-card.success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    color: white;
+}
+
+.dashboard-stats .stat-card.warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.dashboard-stats .stat-card.danger {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    color: white;
+}
+
+.dashboard-stats .stat-card.info {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+}
+
+.dashboard-stats .stat-card.secondary {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    color: #333;
+}
+
+.dashboard-stats .stat-icon {
+    font-size: 2.5rem;
+    margin-right: 15px;
+    opacity: 0.9;
+}
+
+.dashboard-stats .stat-content h3 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+}
+
+.dashboard-stats .stat-content p {
+    font-size: 0.9rem;
+    margin: 5px 0 0 0;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Color-coded project and task details */
+.project-meta .status {
+    padding: 4px 8px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.project-meta .status.just-started {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+}
+
+.project-meta .status.in-progress {
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc02;
+}
+
+.project-meta .status.completed {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #81c784;
+}
+
+.deadline-item .deadline-date {
+    background: #f3e5f5;
+    color: #7b1fa2;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.project-item {
+    border-left: 4px solid #667eea;
+    background: #f8f9fa;
+    margin-bottom: 15px;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.deadline-item {
+    border-left: 4px solid #f093fb;
+    background: #f8f9fa;
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .dashboard-stats .col-md-2 {
+        flex: 0 0 50%;
+        max-width: 50%;
+        margin-bottom: 15px;
+    }
+    
+    .dashboard-stats .stat-card {
+        height: 100px;
+        padding: 15px;
+    }
+    
+    .dashboard-stats .stat-icon {
+        font-size: 2rem;
+    }
+    
+    .dashboard-stats .stat-content h3 {
+        font-size: 1.8rem;
+    }
+}
+
+/* Deadline Item Styles */
+.deadline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border-left: 3px solid #007bff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.deadline-item:hover, .clickable-deadline:hover {
+    background: #e9ecef;
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.deadline-icon {
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.deadline-info {
+    flex: 1;
+}
+
+.deadline-info h5 {
+    margin: 0 0 4px 0;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+.task-project {
+    margin: 0 0 8px 0;
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.assignee-info {
+    margin: 6px 0;
+}
+
+.assignee {
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.assignee.unassigned {
+    color: #dc3545;
+}
+
+.deadline-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.deadline-date {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.priority {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.priority-high {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.priority-medium {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+.priority-low {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+</style>
+
+{% endblock %}

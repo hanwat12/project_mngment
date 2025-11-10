@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Create Task - SLRD Project Management{% endblock %}
+{% block page_title %}Create New Task{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="content-card">
+        <div class="card-header">
+            <h3>Create New Task</h3>
+            <p>Add a new task to a project</p>
+        </div>
+        
+        <form method="POST" class="task-form">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label for="title">Task Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Task Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4"
+                                placeholder="Describe what needs to be done..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="project_id">Project *</label>
+                                <select class="form-control" id="project_id" name="project_id" required>
+                                    <option value="">Select Project</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}" 
+                                            {{ 'selected' if request.args.get('project_id')|int == project.id }}>
+                                        {{ project.title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="assigned_to_id">Assign To</label>
+                                <select class="form-control" id="assigned_to_id" name="assigned_to_id">
+                                    <option value="">Unassigned</option>
+                                    {% for user in assignable_users %}
+                                    <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select class="form-control" id="priority" name="priority">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="deadline">Deadline</label>
+                                <input type="date" class="form-control" id="deadline" name="deadline">
+                                <small class="form-text text-muted">Must be before project deadline</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="dependent_on_task_id">Task Dependencies (Optional)</label>
+                                <select class="form-control" id="dependent_on_task_id" name="dependent_on_task_id" multiple>
+                                    <optgroup label="Tasks in selected project" id="project-tasks">
+                                        <!-- Will be populated by JavaScript -->
+                                    </optgroup>
+                                </select>
+                                <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple task dependencies</small>
+                                
+                                <div class="mt-3">
+                                    <label for="manual_dependencies">Manual Dependencies</label>
+                                    <input type="text" class="form-control" id="manual_dependencies" name="manual_dependencies" placeholder="Type dependency names, separated by commas">
+                                    <small class="form-text text-muted">Enter external or manual dependency names</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="status">Initial Status</label>
+                                <select class="form-control" id="status" name="status">
+                                    <option value="Active" selected>Active</option>
+                                    <option value="On Hold">On Hold</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="help-box">
+                        <h5>Task Guidelines</h5>
+                        <ul>
+                            <li>Choose a clear, descriptive title</li>
+                            <li>Provide detailed description of requirements</li>
+                            <li>Set realistic deadlines</li>
+                            <li>Assign to the appropriate team member</li>
+                            <li>Use priority levels to indicate urgency</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create Task</button>
+                <a href="{{ url_for('tasks_list') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Update task dependencies when project is selected
+document.getElementById('project_id').addEventListener('change', function() {
+    const projectId = this.value;
+    const dependencySelect = document.getElementById('dependent_on_task_id');
+    const projectTasksGroup = document.getElementById('project-tasks');
+    const deadlineInput = document.getElementById('deadline');
+    
+    // Clear existing options
+    projectTasksGroup.innerHTML = '';
+    
+    if (projectId) {
+        // Fetch all available tasks for dependencies and project deadline
+        Promise.all([
+            fetch(`/api/tasks/all`),
+            fetch(`/api/project/${projectId}/tasks`)
+        ])
+        .then(responses => Promise.all(responses.map(r => r.json())))
+        .then(([allTasksData, projectData]) => {
+            // Update task dependencies with all available tasks
+            allTasksData.tasks.forEach(task => {
+                const option = document.createElement('option');
+                option.value = task.id;
+                option.textContent = `${task.title} (${task.project_title})`;
+                projectTasksGroup.appendChild(option);
+            });
+            
+            // Set max date for task deadline based on project deadline
+            if (projectData.project_deadline) {
+                deadlineInput.max = projectData.project_deadline;
+            }
+        })
+        .catch(error => console.error('Error fetching tasks:', error));
+    } else {
+        deadlineInput.removeAttribute('max');
+    }
+});
+</script>
+{% endblock %}

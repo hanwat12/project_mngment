@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks - SLRD Project Management{% endblock %}
+{% block page_title %}Tasks Overview{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>All Tasks</h2>
+            <p class="text-muted">Manage and track task progress</p>
+        </div>
+        {% if current_user.role in ['Admin', 'Manager'] %}
+        <a href="{{ url_for('create_task') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Task
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Task Filters -->
+<div class="task-filters mb-4">
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-secondary active" onclick="filterTasks('all')">All Tasks</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="filterTasks('in-progress')">In Progress</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="filterTasks('pending')">Pending</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="filterTasks('completed')">Completed</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="filterTasks('overdue')">Overdue</button>
+    </div>
+</div>
+
+<div class="tasks-container">
+    {% for task in tasks %}
+    <div class="task-card" data-status="{{ task.status.lower().replace(' ', '-') }}" 
+         data-overdue="{{ 'true' if task.is_overdue() else 'false' }}">
+        <div class="task-header">
+            <h4><a href="{{ url_for('view_task', task_id=task.id) }}">{{ task.title }}</a></h4>
+            <div class="task-badges">
+                <span class="priority-badge priority-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                <span class="status-badge status-{{ task.status.lower().replace(' ', '-') }}">{{ task.status }}</span>
+                {% if task.is_overdue() %}
+                <span class="badge bg-danger">Overdue</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <p class="task-description">{{ task.description[:150] }}...</p>
+        
+        <div class="task-meta">
+            <div class="meta-row">
+                <div class="meta-item">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>{{ task.project.title }}</span>
+                </div>
+                {% if task.assigned_user %}
+                <div class="meta-item">
+                    <i class="fas fa-user"></i>
+                    <span>{{ task.assigned_user.username }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="meta-row">
+                <div class="meta-item">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Created by {{ task.creator.username }}</span>
+                </div>
+                {% if task.deadline %}
+                <div class="meta-item">
+                    <i class="fas fa-calendar"></i>
+                    <span>Due {{ task.deadline.strftime('%b %d, %Y') }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="task-actions">
+            <a href="{{ url_for('view_task', task_id=task.id) }}" class="btn btn-outline-primary btn-sm">
+                View Details
+            </a>
+            {% if task.status != 'Completed' and (task.assigned_to_id == current_user.id or current_user.role in ['Admin', 'Manager']) %}
+            <form method="POST" action="{{ url_for('complete_task', task_id=task.id) }}" class="d-inline">
+                <button type="submit" class="btn btn-success btn-sm">Mark Complete</button>
+            </form>
+            {% endif %}
+            
+            <!-- Three Dots Menu -->
+            {% if current_user.role in ['Admin', 'Manager'] %}
+            <div class="dropdown task-dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('view_task', task_id=task.id) }}">
+                        <i class="fas fa-eye"></i> View Details
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('edit_task', task_id=task.id) }}">
+                        <i class="fas fa-edit"></i> Edit Task
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="showReassignModal({{ task.id }}, '{{ task.title }}', {{ task.assigned_to_id or 'null' }})">
+                        <i class="fas fa-user-edit"></i> Reassign Task
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="confirmDeleteTask({{ task.id }})">
+                        <i class="fas fa-trash"></i> Delete Task
+                    </a></li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if tasks|length == 0 %}
+    <div class="empty-state-large">
+        <i class="fas fa-tasks"></i>
+        <h3>No Tasks Found</h3>
+        <p>You don't have any tasks assigned yet.</p>
+        {% if current_user.role in ['Admin', 'Manager'] %}
+        <a href="{{ url_for('create_task') }}" class="btn btn-primary">Create Your First Task</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function filterTasks(filter) {
+    const tasks = document.querySelectorAll('.task-card');
+    const buttons = document.querySelectorAll('.task-filters .btn');
+    
+    // Update active button
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    tasks.forEach(task => {
+        const status = task.dataset.status;
+        const isOverdue = task.dataset.overdue === 'true';
+        
+        let show = false;
+        
+        switch(filter) {
+            case 'all':
+                show = true;
+                break;
+            case 'in-progress':
+                show = status === 'in-progress';
+                break;
+            case 'pending':
+                show = status === 'pending';
+                break;
+            case 'completed':
+                show = status === 'completed';
+                break;
+            case 'overdue':
+                show = isOverdue;
+                break;
+        }
+        
+        task.style.display = show ? 'block' : 'none';
+    });
+}
+
+function showReassignModal(taskId, taskTitle, currentAssigneeId) {
+    currentTaskId = taskId;
+    document.getElementById('taskTitle').textContent = taskTitle;
+    document.getElementById('reassignForm').action = `/tasks/${taskId}/reassign`;
+    
+    const select = document.getElementById('new_assignee_id');
+    if (currentAssigneeId) {
+        select.value = currentAssigneeId;
+    } else {
+        select.value = '';
+    }
+    
+    document.getElementById('reassignModal').style.display = 'block';
+}
+
+function hideReassignModal() {
+    document.getElementById('reassignModal').style.display = 'none';
+    document.getElementById('reassignForm').reset();
+}
+
+function confirmDeleteTask(taskId) {
+    if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+        fetch(`/tasks/${taskId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting task. Please try again.');
+            }
+        });
+    }
+}
+</script>
+
+<!-- Reassign Task Modal -->
+<div id="reassignModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Reassign Task</h3>
+            <span class="close" onclick="hideReassignModal()">&times;</span>
+        </div>
+        <form id="reassignForm" method="POST">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Task:</label>
+                    <p id="taskTitle" class="text-muted"></p>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="new_assignee_id">Reassign to:</label>
+                    <select name="new_assignee_id" id="new_assignee_id" class="form-control" required>
+                        <option value="">Select team member...</option>
+                        {% for user in team_members %}
+                        <option value="{{ user.id }}">{{ user.username }} ({{ user.role }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Reassign Task</button>
+                <button type="button" class="btn btn-secondary" onclick="hideReassignModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.task-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.task-dropdown {
+    position: relative;
+}
+
+.dropdown-toggle::after {
+    display: none;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: var(--card-bg, white);
+    margin: 10% auto;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color, #e9ecef);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.close {
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-muted, #aaa);
+}
+
+.close:hover {
+    color: var(--text-primary, #000);
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - SLRD Project Management{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>General Settings</h3>
+                    <p>Manage system settings and configurations</p>
+                </div>
+                
+                <div class="settings-sections">
+                    {% if can_add_user %}
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h5>Add New User</h5>
+                            <p>Create new user accounts for your team</p>
+                        </div>
+                        <div class="setting-action">
+                            <a href="{{ url_for('settings_add_user') }}" class="btn btn-primary">
+                                <i class="fas fa-user-plus"></i> Add User
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if current_user.role == 'Admin' %}
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h5>User Types</h5>
+                            <p>Manage available user roles and types</p>
+                        </div>
+                        <div class="setting-action">
+                            <a href="{{ url_for('create_user_type') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-plus"></i> Create User Type
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h5>Your Skills</h5>
+                            <p>Manage your professional skills for better task matching</p>
+                        </div>
+                        <div class="setting-action">
+                            <a href="{{ url_for('manage_skills') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-star"></i> Manage Skills
+                            </a>
+                        </div>
+                    </div>
+                    
+                    {% if can_manage_permissions %}
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h5>Assign Rights</h5>
+                            <p>Manage user permissions and access rights</p>
+                        </div>
+                        <div class="setting-action">
+                            <a href="{{ url_for('team_list') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-shield-alt"></i> Manage Permissions
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="content-card">
+                <div class="card-header">
+                    <h4>Current User Types</h4>
+                </div>
+                
+                <div class="user-types-list">
+                    {% for user_type in user_types %}
+                    <div class="user-type-item">
+                        <div class="user-type-name">{{ user_type.name }}</div>
+                        <div class="user-type-desc">{{ user_type.description }}</div>
+                        <small class="text-muted">Created: {{ user_type.created_at.strftime('%b %d, %Y') }}</small>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if user_types|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-user-tag"></i>
+                        <p>No custom user types created yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-info h5 {
+    margin: 0 0 5px 0;
+    color: #2c3e50;
+}
+
+.setting-info p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.user-type-item {
+    padding: 15px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.user-type-item:last-child {
+    border-bottom: none;
+}
+
+.user-type-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.user-type-desc {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+}
+</style>
+{% endblock %}

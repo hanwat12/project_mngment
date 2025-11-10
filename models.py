@@ -1,0 +1,280 @@
+from datetime import datetime, timezone
+from app import db
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='User')  # Admin, Manager, User
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    skills = db.Column(db.Text)  # JSON string of skills array
+    
+    # Relationships
+    managed_users = db.relationship('User', backref=db.backref('manager', remote_side=[id]), lazy='dynamic')
+    projects_created = db.relationship('Project', foreign_keys='Project.created_by_id', backref='creator', lazy='dynamic')
+    projects_assigned = db.relationship('Project', secondary='project_assignments', back_populates='assigned_users', lazy='dynamic')
+    tasks_created = db.relationship('Task', foreign_keys='Task.created_by_id', backref='creator', lazy='dynamic')
+    tasks_assigned = db.relationship('Task', foreign_keys='Task.assigned_to_id', backref='assigned_user', lazy='dynamic')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic')
+    permissions = db.relationship('UserPermission', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def has_permission(self, module, action):
+        """Check if user has specific permission"""
+        if self.role == 'Admin':
+            return True
+        
+        permission = UserPermission.query.filter_by(
+            user_id=self.id,
+            module=module,
+            action=action
+        ).first()
+        return permission.granted if permission else False
+    
+    def get_accessible_projects(self):
+        """Get projects user can access based on role and permissions"""
+        if self.role == 'Admin':
+            return Project.query.all()
+        elif self.role == 'Manager':
+            # Managers can see projects they created or are assigned to
+            created = Project.query.filter_by(created_by_id=self.id).all()
+            assigned = self.projects_assigned.all()
+            return list(set(created + assigned))
+        else:
+            # Users can only see projects they're assigned to
+            return self.projects_assigned.all()
+    
+    def get_accessible_tasks(self):
+        """Get tasks user can access based on role and permissions"""
+        if self.role == 'Admin':
+            return Task.query.all()
+        elif self.role == 'Manager':
+            # Managers can see tasks they created or are assigned to
+            created = Task.query.filter_by(created_by_id=self.id).all()
+            assigned = Task.query.filter_by(assigned_to_id=self.id).all()
+            return list(set(created + assigned))
+        else:
+            # Users can only see tasks assigned to them
+            return Task.query.filter_by(assigned_to_id=self.id).all()
+
+class Project(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    status = db.Column(db.String(20), default='In Progress')  # Just Started, In Progress, Completed
+    progress = db.Column(db.Integer, default=0)  # 0-100%
+    deadline = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Relationships
+    tasks = db.relationship('Task', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    comments = db.relationship('Comment', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    documents = db.relationship('Document', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    assigned_users = db.relationship('User', secondary='project_assignments', back_populates='projects_assigned')
+    
+    def calculate_progress(self):
+        """Calculate project progress based on completed tasks"""
+        total_tasks = self.tasks.count()
+        if total_tasks == 0:
+            return 0
+        completed_tasks = self.tasks.filter_by(status='Completed').count()
+        return int((completed_tasks / total_tasks) * 100)
+    
+    def update_progress(self):
+        """Update project progress and save to database"""
+        self.progress = self.calculate_progress()
+        if self.progress == 100:
+            self.status = 'Completed'
+        elif self.progress > 0:
+            self.status = 'In Progress'
+        else:
+            self.status = 'Just Started'
+        db.session.commit()
+    
+    def mark_completed(self, user_id=None):
+        """Mark project as completed with approval workflow"""
+        from models_extensions import ProjectApproval
+        
+        if user_id:
+            approval = ProjectApproval(
+                project_id=self.id,
+                marked_complete_by_id=user_id,
+                status='Pending'
+            )
+            db.session.add(approval)
+            self.status = 'Pending Approval'
+        else:
+            self.status = 'Completed'
+        
+        db.session.commit()
+    
+    def is_overdue(self):
+        """Check if project is overdue"""
+        if self.deadline and self.status != 'Completed':
+            return datetime.now().date() > self.deadline
+        return False
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    status = db.Column(db.String(20), default='Pending')  # Pending, In Progress, Completed, Overdue
+    priority = db.Column(db.String(20), default='Medium')  # Low, Medium, High
+    deadline = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    completed_at = db.Column(db.DateTime)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    dependent_on_task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=True)
+    reassigned_from_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    skill_match_percentage = db.Column(db.Integer, default=0)
+    
+    # Relationships
+    comments = db.relationship('Comment', backref='task', lazy='dynamic', cascade='all, delete-orphan')
+    documents = db.relationship('Document', backref='task', lazy='dynamic', cascade='all, delete-orphan')
+    dependent_task = db.relationship('Task', remote_side=[id], backref='dependent_tasks')
+    reassigned_from = db.relationship('User', foreign_keys=[reassigned_from_id])
+    
+    def mark_completed(self, user_id=None):
+        """Mark task as completed and update project progress"""
+        # Create approval record for hierarchy approval
+        from models_extensions import TaskApproval
+        
+        if user_id:
+            approval = TaskApproval(
+                task_id=self.id,
+                marked_complete_by_id=user_id,
+                status='Pending'
+            )
+            db.session.add(approval)
+            self.status = 'Pending Approval'
+        else:
+            self.status = 'Completed'
+            self.completed_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        # Update project progress only if actually completed
+        if self.status == 'Completed':
+            project = Project.query.get(self.project_id)
+            if project:
+                project.update_progress()
+    
+    def is_overdue(self):
+        """Check if task is overdue"""
+        if self.deadline and self.status != 'Completed':
+            return datetime.now().date() > self.deadline
+        return False
+    
+    def calculate_outcome_progress(self):
+        """Calculate task progress based on outcomes completion"""
+        from models_extensions import Outcome
+        total_outcomes = Outcome.query.filter_by(task_id=self.id).count()
+        if total_outcomes == 0:
+            return 0
+        
+        completed_outcomes = Outcome.query.filter_by(task_id=self.id, status='Completed').count()
+        return round((completed_outcomes / total_outcomes) * 100)
+    
+    def get_progress_percentage(self):
+        """Get task progress as percentage based on outcomes"""
+        return self.calculate_outcome_progress()
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
+
+class Document(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(200), nullable=False)
+    original_filename = db.Column(db.String(200), nullable=False)
+    file_size = db.Column(db.Integer)
+    uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
+    
+    # Relationships
+    uploaded_by = db.relationship('User', backref='uploaded_documents')
+
+class UserPermission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    module = db.Column(db.String(50), nullable=False)  # Proj, Proj-team, Proj doc, Proj Dis., task
+    action = db.Column(db.String(20), nullable=False)  # View, Add, Edit, Delete, Download
+    granted = db.Column(db.Boolean, default=False)
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'module', 'action'),)
+
+# New models for enhanced functionality
+class Milestone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    due_date = db.Column(db.Date)
+    status = db.Column(db.String(20), default='Pending')  # Pending, Completed
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    project = db.relationship('Project', backref='milestones')
+
+class UserType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    created_by = db.relationship('User', backref='created_user_types')
+
+class DocumentComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    author = db.relationship('User', backref='document_comments')
+    document = db.relationship('Document', backref='comments')
+
+class DocumentVersion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('document.id'), nullable=False)
+    version_number = db.Column(db.Integer, nullable=False)
+    filename = db.Column(db.String(200), nullable=False)
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    file_size = db.Column(db.Integer)
+    is_current = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    document = db.relationship('Document', backref='versions')
+    uploaded_by = db.relationship('User', backref='uploaded_versions')
+
+
+# Association table for project assignments
+project_assignments = db.Table('project_assignments',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('project_id', db.Integer, db.ForeignKey('project.id'), primary_key=True)
+)

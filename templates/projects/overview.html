@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Projects Overview{% endblock %}
+
+{% block content %}
+<div class="projects-overview">
+    <div class="content-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Projects Overview</h2>
+            <p class="text-muted">Manage and track your active projects</p>
+        </div>
+        <button class="btn btn-dark">
+            <i class="fas fa-plus"></i> New Project
+        </button>
+    </div>
+
+    <div class="projects-container">
+        {% for project in projects %}
+        <div class="project-card">
+            <div class="project-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h3>{{ project.title }}</h3>
+                        <p class="project-description">{{ project.description }}</p>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-link text-muted" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('view_project', project_id=project.id) }}">View Details</a></li>
+                            {% if current_user.role in ['Admin', 'Manager'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('edit_project', project_id=project.id) }}">Edit Project</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('project_milestones', project_id=project.id) }}">Milestones</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteProject({{ project.id }}, '{{ project.title }}')">Delete Project</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="project-progress">
+                <div class="progress-info">
+                    <span>Progress</span>
+                    <span class="progress-percentage">{{ project.progress }}%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" style="width: {{ project.progress }}%"></div>
+                </div>
+            </div>
+
+            <div class="project-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Status:</span>
+                    <span class="status-badge status-{{ project.status.lower().replace(' ', '-') }}">{{ project.status }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Tasks:</span>
+                    <span class="meta-value">{{ project.tasks.count() }}/{{ project.tasks.count() }}</span>
+                </div>
+            </div>
+
+            <div class="project-team">
+                <div class="team-label">Team:</div>
+                <div class="team-avatars">
+                    {% for user in project.assigned_users[:3] %}
+                    <div class="team-avatar" title="{{ user.username }}">
+                        {{ user.username[:2].upper() }}
+                    </div>
+                    {% endfor %}
+                    {% if project.assigned_users.count() > 3 %}
+                    <div class="team-avatar more">+{{ project.assigned_users.count() - 3 }}</div>
+                    {% endif %}
+                </div>
+                <button class="btn btn-link btn-sm discussion-btn">
+                    <i class="fas fa-comments"></i> Discussion
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.projects-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.project-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+}
+
+.project-header h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+.project-description {
+    color: #6c757d;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.project-progress {
+    margin-bottom: 20px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.progress-percentage {
+    color: #495057;
+}
+
+.progress {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.project-meta {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.meta-label {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-in-progress {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-completed {
+    background-color: #d1edff;
+    color: #0c5460;
+}
+
+.status-just-started {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.project-team {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.team-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.team-avatars {
+    display: flex;
+    gap: 8px;
+}
+
+.team-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.team-avatar.more {
+    background: #6c757d;
+    font-size: 0.6rem;
+}
+
+.discussion-btn {
+    margin-left: auto;
+    color: #6c757d;
+    font-size: 0.9rem;
+    padding: 4px 8px;
+}
+
+.discussion-btn:hover {
+    color: #007bff;
+}
+</style>
+
+<script>
+function deleteProject(projectId, projectTitle) {
+    if (confirm(`Are you sure you want to delete project "${projectTitle}"? This action cannot be undone and will also delete all associated tasks.`)) {
+        fetch(`/projects/${projectId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting project');
+            }
+        });
+    }
+}
+
+function showProjectTeamDetails(projectId) {
+    // Show modal with project team details
+    fetch(`/api/project/${projectId}/team-details`)
+        .then(response => response.json())
+        .then(data => {
+            showTeamModal(data);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function showTeamModal(data) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Project Team Details</h3>
+                <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="team-details">
+                    <h5>Project Members (${data.project_members.length})</h5>
+                    ${data.project_members.map(member => `
+                        <div class="member-item">
+                            <strong>${member.username}</strong> (${member.role})
+                        </div>
+                    `).join('')}
+                    
+                    <h5 class="mt-3">Task Assignments (${data.task_assignments.length})</h5>
+                    ${data.task_assignments.map(task => `
+                        <div class="task-item">
+                            <a href="/tasks/${task.id}">${task.title}</a> - 
+                            Assigned to: ${task.assigned_to || 'Unassigned'}
+                        </div>
+                    `).join('')}
+                    
+                    <div class="summary-stats mt-3">
+                        <div>Documents: ${data.documents_count}</div>
+                        <div>Comments: ${data.comments_count}</div>
+                        <div>Total Team Size: ${data.total_team_size}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+</script>
+
+<style>
+.clickable-team {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.clickable-team:hover {
+    color: #007bff;
+}
+
+.status-not-started {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+.status-in-progress {
+    background: #cce7ff;
+    color: #0056b3;
+}
+
+.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-overdue {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.clickable-team {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.clickable-team:hover {
+    color: #007bff;
+}
+
+.member-item, .task-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.summary-stats {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.summary-stats div {
+    margin-bottom: 5px;
+}
+</style>
+{% endblock %}

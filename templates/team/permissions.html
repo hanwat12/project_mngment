@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Permissions - {{ user.username }} - SLRD Project Management{% endblock %}
+{% block page_title %}Manage Permissions - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="permissions-management">
+    <div class="content-header">
+        <div class="d-flex align-items-center mb-4">
+            <a href="{{ url_for('team_list') }}" class="btn btn-outline-secondary me-3">
+                <i class="fas fa-arrow-left"></i> Back to Team
+            </a>
+            <div>
+                <h2>Manage Permissions</h2>
+                <p class="text-muted">Configure access rights for {{ user.username }} ({{ user.role }})</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-card">
+        <div class="card-header">
+            <h3>Permission Matrix</h3>
+            <p>Select the permissions this user should have for each module</p>
+        </div>
+        
+        <form method="POST" class="permissions-form">
+            <div class="permissions-table">
+                <div class="table-responsive">
+                    <table class="table table-bordered permissions-matrix">
+                        <thead>
+                            <tr>
+                                <th class="module-column">Module</th>
+                                <th class="permission-column">View</th>
+                                <th class="permission-column">Add</th>
+                                <th class="permission-column">Edit</th>
+                                <th class="permission-column">Delete</th>
+                                <th class="permission-column">Download</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-project-diagram"></i>
+                                        <span>Projects</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_View" id="Proj_View"
+                                               {{ 'checked' if permissions.get('Proj_View') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Add" id="Proj_Add"
+                                               {{ 'checked' if permissions.get('Proj_Add') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Edit" id="Proj_Edit"
+                                               {{ 'checked' if permissions.get('Proj_Edit') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Delete" id="Proj_Delete"
+                                               {{ 'checked' if permissions.get('Proj_Delete') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Download" id="Proj_Download"
+                                               {{ 'checked' if permissions.get('Proj_Download') }}>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-users"></i>
+                                        <span>Project Team</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_team_View" id="Proj_team_View"
+                                               {{ 'checked' if permissions.get('Proj_team_View') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_team_Add" id="Proj_team_Add"
+                                               {{ 'checked' if permissions.get('Proj_team_Add') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_team_Edit" id="Proj_team_Edit"
+                                               {{ 'checked' if permissions.get('Proj_team_Edit') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_team_Delete" id="Proj_team_Delete"
+                                               {{ 'checked' if permissions.get('Proj_team_Delete') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_team_Download" id="Proj_team_Download"
+                                               {{ 'checked' if permissions.get('Proj_team_Download') }}>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-file-alt"></i>
+                                        <span>Project Documents</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_doc_View" id="Proj_doc_View"
+                                               {{ 'checked' if permissions.get('Proj_doc_View') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_doc_Add" id="Proj_doc_Add"
+                                               {{ 'checked' if permissions.get('Proj_doc_Add') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_doc_Edit" id="Proj_doc_Edit"
+                                               {{ 'checked' if permissions.get('Proj_doc_Edit') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_doc_Delete" id="Proj_doc_Delete"
+                                               {{ 'checked' if permissions.get('Proj_doc_Delete') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_doc_Download" id="Proj_doc_Download"
+                                               {{ 'checked' if permissions.get('Proj_doc_Download') }}>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-comments"></i>
+                                        <span>Project Discussion</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Dis__View" id="Proj_Dis__View"
+                                               {{ 'checked' if permissions.get('Proj_Dis__View') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Dis__Add" id="Proj_Dis__Add"
+                                               {{ 'checked' if permissions.get('Proj_Dis__Add') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Dis__Edit" id="Proj_Dis__Edit"
+                                               {{ 'checked' if permissions.get('Proj_Dis__Edit') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Dis__Delete" id="Proj_Dis__Delete"
+                                               {{ 'checked' if permissions.get('Proj_Dis__Delete') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="Proj_Dis__Download" id="Proj_Dis__Download"
+                                               {{ 'checked' if permissions.get('Proj_Dis__Download') }}>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr class="no-permissions-row">
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-user-plus"></i>
+                                        <span>Add User</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr class="no-permissions-row">
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-user-cog"></i>
+                                        <span>Create User Type</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr class="no-permissions-row">
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <span>Assign Rights</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                                <td class="permission-cell disabled">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" disabled>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td class="module-name">
+                                    <div class="module-info">
+                                        <i class="fas fa-tasks"></i>
+                                        <span>Tasks</span>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="task_View" id="task_View"
+                                               {{ 'checked' if permissions.get('task_View') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="task_Add" id="task_Add"
+                                               {{ 'checked' if permissions.get('task_Add') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="task_Edit" id="task_Edit"
+                                               {{ 'checked' if permissions.get('task_Edit') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="task_Delete" id="task_Delete"
+                                               {{ 'checked' if permissions.get('task_Delete') }}>
+                                    </div>
+                                </td>
+                                <td class="permission-cell">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="task_Download" id="task_Download"
+                                               {{ 'checked' if permissions.get('task_Download') }}>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="permissions-actions">
+                <div class="bulk-actions">
+                    <button type="button" class="btn btn-outline-secondary" onclick="selectAllPermissions()">
+                        Select All
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearAllPermissions()">
+                        Clear All
+                    </button>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Permissions
+                    </button>
+                    <a href="{{ url_for('team_list') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function selectAllPermissions() {
+    const checkboxes = document.querySelectorAll('.permissions-matrix input[type="checkbox"]:not([disabled])');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+function clearAllPermissions() {
+    const checkboxes = document.querySelectorAll('.permissions-matrix input[type="checkbox"]:not([disabled])');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+</script>
+{% endblock %}

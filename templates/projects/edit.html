@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Project - SLRD Project Management{% endblock %}
+{% block page_title %}Edit Project{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="content-card">
+        <div class="card-header">
+            <h3>Edit Project: {{ project.title }}</h3>
+            <p>Update project details, team members, and status</p>
+        </div>
+        
+        <form method="POST" class="project-form">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label for="title">Project Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="{{ project.title }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Project Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4">{{ project.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="status">Project Status</label>
+                                <select class="form-control" id="status" name="status">
+                                    <option value="Just Started" {{ 'selected' if project.status == 'Just Started' }}>Just Started</option>
+                                    <option value="In Progress" {{ 'selected' if project.status == 'In Progress' }}>In Progress</option>
+                                    <option value="Completed" {{ 'selected' if project.status == 'Completed' }}>Completed</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="deadline">Project Deadline</label>
+                                <input type="date" class="form-control" id="deadline" name="deadline" 
+                                       value="{{ project.deadline.strftime('%Y-%m-%d') if project.deadline }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Assign Team Members</label>
+                        <div class="team-selection">
+                            {% for user in assignable_users %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       id="user_{{ user.id }}" name="assigned_users" value="{{ user.id }}"
+                                       {{ 'checked' if user in project.assigned_users }}>
+                                <label class="form-check-label" for="user_{{ user.id }}">
+                                    <div class="user-info">
+                                        <span class="user-name">{{ user.username }}</span>
+                                        <span class="user-role">{{ user.role }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Update Project</button>
+                <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

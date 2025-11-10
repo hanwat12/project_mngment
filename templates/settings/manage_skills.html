@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Skills - SLRD Project Management{% endblock %}
+{% block page_title %}Manage Your Skills{% endblock %}
+
+{% block content %}
+<div class="skills-management">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Your Professional Skills</h3>
+                    <p>Add skills to help with task matching and assignment optimization</p>
+                </div>
+                
+                <form method="POST" id="skillsForm">
+                    <div class="skills-input-section">
+                        <div class="form-group">
+                            <label for="skillInput">Add New Skill</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="skillInput" placeholder="e.g., JavaScript, Project Management, Design">
+                                <button type="button" class="btn btn-outline-primary" onclick="addSkill()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="current-skills-section">
+                        <h5>Current Skills</h5>
+                        <div id="skillsList" class="skills-list">
+                            {% for skill in current_skills %}
+                            <div class="skill-tag">
+                                <span>{{ skill }}</span>
+                                <button type="button" class="btn-remove" onclick="removeSkill(this)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <input type="hidden" name="skills[]" value="{{ skill }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if current_skills|length == 0 %}
+                        <div id="emptySkillsMessage" class="empty-skills">
+                            <i class="fas fa-star"></i>
+                            <p>No skills added yet. Add your first skill above!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Skills
+                        </button>
+                        <a href="{{ url_for('settings') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="content-card">
+                <div class="card-header">
+                    <h4>Skill Matching</h4>
+                </div>
+                
+                <div class="skill-info">
+                    <div class="info-item">
+                        <i class="fas fa-lightbulb text-warning"></i>
+                        <div>
+                            <h6>Better Task Assignment</h6>
+                            <p>Skills help managers assign tasks that match your expertise</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <i class="fas fa-chart-line text-success"></i>
+                        <div>
+                            <h6>Performance Tracking</h6>
+                            <p>Track how well your skills align with completed tasks</p>
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <i class="fas fa-users text-info"></i>
+                        <div>
+                            <h6>Team Collaboration</h6>
+                            <p>Help teammates find expertise within the team</p>
+                        </div>
+                    </div>
+                </div>
+                
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.skills-input-section {
+    margin-bottom: 30px;
+}
+
+.skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+    min-height: 60px;
+}
+
+.skill-tag {
+    display: flex;
+    align-items: center;
+    background: #e3f2fd;
+    color: #1565c0;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    border: 1px solid #bbdefb;
+}
+
+.skill-tag span {
+    margin-right: 8px;
+}
+
+.btn-remove {
+    background: none;
+    border: none;
+    color: #1565c0;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+.btn-remove:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.empty-skills {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.empty-skills i {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.info-item i {
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.info-item h6 {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+}
+
+.info-item p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.popular-skills {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.popular-skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.popular-skill {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s;
+}
+
+.popular-skill:hover {
+    background: #e9ecef;
+    transform: translateY(-1px);
+}
+
+.form-actions {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+</style>
+
+<script>
+function addSkill() {
+    const input = document.getElementById('skillInput');
+    const skill = input.value.trim();
+    
+    if (skill && !skillExists(skill)) {
+        createSkillTag(skill);
+        input.value = '';
+        hideEmptyMessage();
+    }
+}
+
+function addPopularSkill(skill) {
+    if (!skillExists(skill)) {
+        createSkillTag(skill);
+        hideEmptyMessage();
+    }
+}
+
+function createSkillTag(skill) {
+    const skillsList = document.getElementById('skillsList');
+    const skillTag = document.createElement('div');
+    skillTag.className = 'skill-tag';
+    skillTag.innerHTML = `
+        <span>${skill}</span>
+        <button type="button" class="btn-remove" onclick="removeSkill(this)">
+            <i class="fas fa-times"></i>
+        </button>
+        <input type="hidden" name="skills[]" value="${skill}">
+    `;
+    skillsList.appendChild(skillTag);
+}
+
+function removeSkill(button) {
+    button.parentElement.remove();
+    
+    const skillsList = document.getElementById('skillsList');
+    if (skillsList.children.length === 0) {
+        showEmptyMessage();
+    }
+}
+
+function skillExists(skill) {
+    const existingSkills = document.querySelectorAll('input[name="skills[]"]');
+    return Array.from(existingSkills).some(input => input.value.toLowerCase() === skill.toLowerCase());
+}
+
+function hideEmptyMessage() {
+    const emptyMessage = document.getElementById('emptySkillsMessage');
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+}
+
+function showEmptyMessage() {
+    const emptyMessage = document.getElementById('emptySkillsMessage');
+    if (emptyMessage) {
+        emptyMessage.style.display = 'block';
+    }
+}
+
+// Allow Enter key to add skill
+document.getElementById('skillInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addSkill();
+    }
+});
+</script>
+{% endblock %}

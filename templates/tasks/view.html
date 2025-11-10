@@ -1,0 +1,960 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }} - SLRD Project Management{% endblock %}
+{% block page_title %}{{ task.title }}{% endblock %}
+
+{% block content %}
+<div class="task-details">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Task Info -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3>Task Details</h3>
+                            <div class="task-badges">
+                                <span class="priority-badge priority-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                                <span class="status-badge status-{{ task.status.lower().replace(' ', '-') }}">{{ task.status }}</span>
+                                {% if task.is_overdue() %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% endif %}
+                            </div>
+                            {% if task.outcomes|length > 0 %}
+                            <div class="task-progress-display">
+                                <label>Task Progress (Based on Outcomes):</label>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: {{ task.get_progress_percentage() }}%"></div>
+                                    </div>
+                                    <span class="progress-text">{{ task.get_progress_percentage() }}%</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="task-actions">
+                            {% if task.status != 'Completed' and (task.assigned_to_id == current_user.id or current_user.role in ['Admin', 'Manager']) %}
+                            <form method="POST" action="{{ url_for('complete_task', task_id=task.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-success">Mark Complete</button>
+                            </form>
+                            {% endif %}
+                            {% if current_user.role in ['Admin', 'Manager'] and task.created_by_id == current_user.id %}
+                            <a href="{{ url_for('edit_task', task_id=task.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-edit"></i> Edit Task
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="task-info">
+                    <p class="description">{{ task.description or 'No description provided.' }}</p>
+                    
+                    <div class="task-meta-grid">
+                        <div class="meta-item">
+                            <label>📋 Project:</label>
+                            <span><a href="{{ url_for('view_project', project_id=task.project.id) }}" style="color: purple; font-weight: bold;">{{ task.project.title }}</a></span>
+                        </div>
+                        <div class="meta-item">
+                            <label>🟦 Created by:</label>
+                            <span style="color: blue; font-weight: bold;">{{ task.creator.username }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <label>👤 Assigned to:</label>
+                            <span style="color: darkgreen; font-weight: bold;">{{ task.assigned_user.username if task.assigned_user else 'Unassigned' }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <label>🟩 Created on:</label>
+                            <span style="color: green; font-weight: bold;">{{ task.created_at.strftime('%B %d, %Y') }}</span>
+                        </div>
+                        {% if task.deadline %}
+                        <div class="meta-item">
+                            <label>🟥 Deadline:</label>
+                            <span style="color: red; font-weight: bold;">{{ task.deadline.strftime('%B %d, %Y') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if task.completed_at %}
+                        <div class="meta-item">
+                            <label>✅ Completed on:</label>
+                            <span style="color: green; font-weight: bold;">{{ task.completed_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Task Dependencies Section -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3>Task Dependencies</h3>
+                            <p class="text-muted">Prerequisites and blocking relationships</p>
+                        </div>
+                        {% if current_user.role in ['Admin', 'Manager'] %}
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="showAddDependencyModal()">
+                                <i class="fas fa-plus"></i> Add Dependency
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if task.dependent_task or task.manual_dependencies %}
+                <div class="dependencies-container">
+                    <div class="dependency-section">
+                        <h5 class="dependency-section-title">
+                            <i class="fas fa-arrow-left text-danger"></i> 
+                            Blocked by ({{ (1 if task.dependent_task else 0) + task.manual_dependencies|length }})
+                        </h5>
+                        <div class="dependencies-list">
+                            {% if task.dependent_task %}
+                            <div class="dependency-item {% if task.dependent_task.status == 'Completed' %}completed{% else %}blocking{% endif %}">
+                                <div class="dependency-icon">
+                                    <i class="fas fa-link {% if task.dependent_task.status == 'Completed' %}text-success{% else %}text-danger{% endif %}"></i>
+                                </div>
+                                <div class="dependency-content">
+                                    <h5>
+                                        <a href="{{ url_for('view_task', task_id=task.dependent_task.id) }}">{{ task.dependent_task.title }}</a>
+                                        {% if task.dependent_task.status != 'Completed' %}
+                                        <span class="blocking-badge">BLOCKING</span>
+                                        {% endif %}
+                                    </h5>
+                                    <p>{{ task.dependent_task.description[:100] }}{% if task.dependent_task.description|length > 100 %}...{% endif %}</p>
+                                    <div class="dependency-meta">
+                                        <span class="status-badge status-{{ task.dependent_task.status.lower().replace(' ', '-') }}">{{ task.dependent_task.status }}</span>
+                                        {% if task.dependent_task.deadline %}
+                                        <small class="text-muted">Due: {{ task.dependent_task.deadline.strftime('%b %d, %Y') }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if current_user.role in ['Admin', 'Manager'] %}
+                                <div class="dependency-actions">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="removeDependency('task', {{ task.dependent_task.id }})">
+                                        <i class="fas fa-unlink"></i>
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            {% for manual_dep in task.manual_dependencies %}
+                            <div class="dependency-item {% if manual_dep.status == 'Completed' %}completed{% else %}blocking{% endif %}">
+                                <div class="dependency-icon">
+                                    <i class="fas fa-hand-paper {% if manual_dep.status == 'Completed' %}text-success{% else %}text-warning{% endif %}"></i>
+                                </div>
+                                <div class="dependency-content">
+                                    <h5>
+                                        {{ manual_dep.dependency_name }}
+                                        {% if manual_dep.status != 'Completed' %}
+                                        <span class="blocking-badge">BLOCKING</span>
+                                        {% endif %}
+                                    </h5>
+                                    {% if manual_dep.dependency_description %}
+                                    <p>{{ manual_dep.dependency_description }}</p>
+                                    {% endif %}
+                                    <span class="status-badge status-{{ manual_dep.status.lower() }}">{{ manual_dep.status }}</span>
+                                </div>
+                                {% if current_user.role in ['Admin', 'Manager'] %}
+                                <div class="dependency-actions">
+                                    {% if manual_dep.status != 'Completed' %}
+                                    <button class="btn btn-sm btn-success" onclick="completeDependency({{ manual_dep.id }})">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="removeDependency('manual', {{ manual_dep.id }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-project-diagram"></i>
+                    <h4>No Dependencies</h4>
+                    <p>This task has no blocking dependencies</p>
+                    {% if current_user.role in ['Admin', 'Manager'] %}
+                    <button class="btn btn-primary" onclick="showAddDependencyModal()">Add Dependency</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Outcomes Section -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3>Task Outcomes</h3>
+                            <p class="text-muted">Track deliverables and measurable results</p>
+                        </div>
+                        {% if current_user.role in ['Admin', 'Manager'] or task.assigned_to_id == current_user.id %}
+                        <button type="button" class="btn btn-primary" onclick="showAddOutcomeModal()">
+                            <i class="fas fa-plus"></i> Add Outcome
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-outline-secondary" onclick="showPermissionDenied()">
+                            <i class="fas fa-plus"></i> Add Outcome
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Timeline View Toggle -->
+                <div class="view-toggle mb-3">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" onclick="switchOutcomeView('timeline')">
+                            <i class="fas fa-stream"></i> Timeline
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="switchOutcomeView('list')">
+                            <i class="fas fa-list"></i> List
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Timeline View -->
+                <div id="outcomes-timeline-view" class="outcomes-timeline">
+                    <div class="timeline-container">
+                        {% for outcome in task.outcomes %}
+                        <div class="timeline-item {% if outcome.status == 'Completed' %}completed{% endif %}">
+                            <div class="timeline-marker">
+                                {% if outcome.status == 'Completed' %}
+                                <i class="fas fa-check-circle"></i>
+                                {% else %}
+                                <i class="fas fa-target"></i>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <h5>{{ outcome.title }}</h5>
+                                    <div class="timeline-dates">
+                                        {% if outcome.deadline %}
+                                        <span class="timeline-deadline {% if outcome.is_overdue() %}overdue{% endif %}">
+                                            <i class="fas fa-calendar"></i> Due: {{ outcome.deadline.strftime('%b %d, %Y') }}
+                                        </span>
+                                        {% endif %}
+                                        {% if outcome.completed_at %}
+                                        <span class="timeline-date">
+                                            <i class="fas fa-calendar-check"></i> Completed {{ outcome.completed_at.strftime('%b %d, %Y') }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <p class="timeline-description">{{ outcome.description or 'No description provided.' }}</p>
+                                
+                                <div class="timeline-actions">
+                                    <span class="outcome-status-badge status-{{ outcome.status.lower() }}">
+                                        {{ outcome.status }}
+                                    </span>
+                                    
+                                    {% if current_user.role in ['Admin', 'Manager'] or task.assigned_to_id == current_user.id %}
+                                        {% if outcome.status == 'Pending' %}
+                                        <button class="btn btn-sm btn-success" onclick="markOutcomeComplete({{ outcome.id }})">
+                                            <i class="fas fa-check"></i> Mark Complete
+                                        </button>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if task.outcomes|length == 0 %}
+                        <div class="empty-state">
+                            <i class="fas fa-target"></i>
+                            <h5>No Outcomes Yet</h5>
+                            <p>Add outcomes to track task deliverables and achievements.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- List View -->
+                <div id="outcomes-list-view" class="outcomes-list" style="display: none;">
+                    {% for outcome in task.outcomes %}
+                    <div class="outcome-card">
+                        <div class="outcome-status">
+                            {% if outcome.status == 'Completed' %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                            <i class="fas fa-target text-primary"></i>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="outcome-content">
+                            <h5>{{ outcome.title }}</h5>
+                            <p>{{ outcome.description or 'No description provided.' }}</p>
+                            
+                            <div class="outcome-meta">
+                                <span class="outcome-creator">Created by: {{ outcome.created_by.username }}</span>
+                                {% if outcome.deadline %}
+                                <span class="outcome-deadline {% if outcome.is_overdue() %}overdue{% endif %}">
+                                    <i class="fas fa-calendar"></i> Due: {{ outcome.deadline.strftime('%b %d, %Y') }}
+                                </span>
+                                {% endif %}
+                                {% if outcome.completed_at %}
+                                <span class="outcome-completed">
+                                    <i class="fas fa-calendar-check"></i> Completed: {{ outcome.completed_at.strftime('%b %d, %Y') }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="outcome-actions">
+                            <span class="outcome-status-badge status-{{ outcome.status.lower() }}">{{ outcome.status }}</span>
+                            {% if current_user.role in ['Admin', 'Manager'] or task.assigned_to_id == current_user.id %}
+                                {% if outcome.status == 'Pending' %}
+                                <button class="btn btn-sm btn-success" onclick="markOutcomeComplete({{ outcome.id }})">
+                                    <i class="fas fa-check"></i> Mark Complete
+                                </button>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if task.outcomes|length == 0 %}
+                    <div class="empty-state">
+                        <i class="fas fa-target"></i>
+                        <h5>No Outcomes Yet</h5>
+                        <p>Add outcomes to track task deliverables and achievements.</p>
+                        {% if current_user.role in ['Admin', 'Manager'] or task.assigned_to_id == current_user.id %}
+                        <button type="button" class="btn btn-primary" onclick="showAddOutcomeModal()">
+                            <i class="fas fa-plus"></i> Add First Outcome
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Comments Section -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3>Task Discussion</h3>
+                </div>
+                
+                <!-- Add Comment Form -->
+                <form method="POST" action="{{ url_for('add_task_comment', task_id=task.id) }}" class="comment-form">
+                    <div class="form-group">
+                        <textarea class="form-control" name="content" rows="3" 
+                                placeholder="Add a comment..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                </form>
+                
+                <!-- Comments List -->
+                <div class="comments-list">
+                    {% for comment in comments %}
+                    <div class="comment-item">
+                        <div class="comment-header">
+                            <span class="author">{{ comment.author.username }}</span>
+                            <span class="timestamp">{{ comment.created_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        <div class="comment-content">
+                            {{ comment.content }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if comments|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-comments"></i>
+                        <p>No comments yet. Start the discussion!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Task Summary -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <h4>Task Summary</h4>
+                </div>
+                <div class="task-summary">
+                    <div class="summary-item">
+                        <i class="fas fa-project-diagram"></i>
+                        <div>
+                            <label>Project</label>
+                            <span>{{ task.project.title }}</span>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <i class="fas fa-user"></i>
+                        <div>
+                            <label>Assignee</label>
+                            <span>{{ task.assigned_user.username if task.assigned_user else 'Unassigned' }}</span>
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <i class="fas fa-flag"></i>
+                        <div>
+                            <label>Priority</label>
+                            <span class="priority-badge priority-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                        </div>
+                    </div>
+                    {% if task.deadline %}
+                    <div class="summary-item">
+                        <i class="fas fa-calendar"></i>
+                        <div>
+                            <label>Deadline</label>
+                            <span>{{ task.deadline.strftime('%b %d, %Y') }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Documents -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h4>Task Documents</h4>
+                </div>
+                
+                <!-- Upload Form -->
+                <form method="POST" action="{{ url_for('upload_task_document', task_id=task.id) }}" 
+                      enctype="multipart/form-data" class="upload-form">
+                    <div class="form-group">
+                        <input type="file" class="form-control" name="file" required>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Upload</button>
+                </form>
+                
+                <!-- Documents List -->
+                <div class="documents-list">
+                    {% for document in documents %}
+                    <div class="document-item">
+                        <i class="fas fa-file"></i>
+                        <div class="document-info">
+                            <div class="document-name">{{ document.original_filename }}</div>
+                            <div class="document-meta">
+                                <small>{{ document.uploaded_by.username }} • {{ document.uploaded_at.strftime('%b %d') }}</small>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('download_document', document_id=document.id) }}" 
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-download"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if documents|length == 0 %}
+                    <div class="empty-state small">
+                        <i class="fas fa-folder-open"></i>
+                        <p>No documents uploaded</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Dependency Modal -->
+<div id="addDependencyModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add Task Dependency</h3>
+            <span class="close" onclick="hideAddDependencyModal()">&times;</span>
+        </div>
+        <form id="addDependencyForm" method="POST" action="{{ url_for('add_manual_dependency', task_id=task.id) }}">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label class="form-label">Dependency Type</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="dependency_type" id="task_dep" value="task" checked>
+                        <label class="btn btn-outline-primary" for="task_dep">Task Dependency</label>
+                        
+                        <input type="radio" class="btn-check" name="dependency_type" id="manual_dep" value="manual">
+                        <label class="btn btn-outline-primary" for="manual_dep">Manual Dependency</label>
+                    </div>
+                </div>
+                
+                <!-- Task Dependency Options -->
+                <div id="taskDependencyOptions" class="dependency-options">
+                    <div class="form-group mb-3">
+                        <label for="dependent_task_id">Select Task:</label>
+                        <select name="dependent_task_id" id="dependent_task_id" class="form-control">
+                            <option value="">Choose a task...</option>
+                            {% for project_task in available_tasks %}
+                            <option value="{{ project_task.id }}">{{ project_task.title }} ({{ project_task.project.title }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Manual Dependency Options -->
+                <div id="manualDependencyOptions" class="dependency-options" style="display: none;">
+                    <div class="form-group mb-3">
+                        <label for="dependency_name">Dependency Name:</label>
+                        <input type="text" name="dependency_name" id="dependency_name" class="form-control" placeholder="e.g., Client approval, Resource allocation">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="dependency_description">Description (optional):</label>
+                        <textarea name="dependency_description" id="dependency_description" class="form-control" rows="3" placeholder="Additional details about this dependency..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Dependencies will block this task until they are completed.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Add Dependency</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddDependencyModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Outcome Modal -->
+<div id="outcomeModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add Outcome</h3>
+            <span class="close" onclick="hideAddOutcomeModal()">&times;</span>
+        </div>
+        <form method="POST" action="{{ url_for('create_outcome', task_id=task.id) }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Outcome Title</label>
+                    <input type="text" name="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Deadline</label>
+                    <input type="date" name="deadline" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Add Outcome</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddOutcomeModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Outcomes Timeline Styles */
+.outcomes-timeline {
+    padding: 20px 0;
+}
+
+.outcomes-timeline .timeline-container {
+    position: relative;
+    max-width: 100%;
+}
+
+.outcomes-timeline .timeline-container::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #007bff, #28a745);
+    border-radius: 1px;
+}
+
+.outcomes-timeline .timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 60px;
+}
+
+.outcomes-timeline .timeline-item.completed .timeline-marker {
+    background: #28a745;
+}
+
+.outcomes-timeline .timeline-marker {
+    position: absolute;
+    left: 10px;
+    top: 5px;
+    width: 20px;
+    height: 20px;
+    background: #007bff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    z-index: 2;
+}
+
+.outcomes-timeline .timeline-content {
+    background: var(--card-bg, white);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color, #e9ecef);
+}
+
+.outcomes-timeline .timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.outcomes-timeline .timeline-header h5 {
+    margin: 0;
+    color: var(--text-primary, #2c3e50);
+    flex: 1;
+}
+
+.outcomes-timeline .timeline-date {
+    color: var(--text-muted, #6c757d);
+    font-size: 0.8rem;
+    margin-left: 10px;
+}
+
+.dependency-item {
+    display: flex;
+    align-items: flex-start;
+    background: var(--card-bg, #f8f9fa);
+    border-radius: 8px;
+    padding: 16px;
+    border-left: 3px solid #ffc107;
+    margin-bottom: 15px;
+}
+
+.dependency-icon {
+    margin-right: 15px;
+    font-size: 1.2rem;
+    margin-top: 3px;
+}
+
+.dependency-content {
+    flex: 1;
+}
+
+.dependency-content h5 {
+    margin: 0 0 8px 0;
+    color: var(--text-primary, #2c3e50);
+}
+
+.outcome-card {
+    display: flex;
+    align-items: flex-start;
+    background: var(--card-bg, white);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 3px solid #007bff;
+    border: 1px solid var(--border-color, #e9ecef);
+    margin-bottom: 15px;
+}
+
+.outcome-status {
+    margin-right: 15px;
+    font-size: 1.2rem;
+    margin-top: 3px;
+}
+
+.outcome-content {
+    flex: 1;
+}
+
+.outcome-content h5 {
+    margin: 0 0 8px 0;
+    color: var(--text-primary, #2c3e50);
+}
+
+.outcome-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.85rem;
+    color: var(--text-muted, #6c757d);
+}
+
+.outcome-actions {
+    margin-left: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.outcome-status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.timeline-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.timeline-deadline, .outcome-deadline {
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+.timeline-deadline.overdue, .outcome-deadline.overdue {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.timeline-date, .outcome-completed {
+    color: #28a745;
+    font-size: 0.85rem;
+}
+
+.task-progress-display {
+    margin-top: 15px;
+}
+
+.task-progress-display label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #28a745);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #495057;
+    min-width: 35px;
+}
+</style>
+
+<script>
+function switchOutcomeView(viewType) {
+    const timelineView = document.getElementById('outcomes-timeline-view');
+    const listView = document.getElementById('outcomes-list-view');
+    const buttons = document.querySelectorAll('.view-toggle .btn');
+    
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    if (viewType === 'timeline') {
+        timelineView.style.display = 'block';
+        listView.style.display = 'none';
+        buttons[0].classList.add('active');
+    } else {
+        timelineView.style.display = 'none';
+        listView.style.display = 'block';
+        buttons[1].classList.add('active');
+    }
+    
+    localStorage.setItem('outcomeViewPreference', viewType);
+}
+
+function showAddOutcomeModal() {
+    document.getElementById('outcomeModal').style.display = 'block';
+}
+
+function hideAddOutcomeModal() {
+    document.getElementById('outcomeModal').style.display = 'none';
+}
+
+function markOutcomeComplete(outcomeId) {
+    if (confirm('Mark this outcome as complete?')) {
+        fetch(`/outcomes/${outcomeId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function toggleDocumentComments(documentId) {
+    const commentsDiv = document.getElementById(`documentComments${documentId}`);
+    if (commentsDiv.style.display === 'none') {
+        commentsDiv.style.display = 'block';
+    } else {
+        commentsDiv.style.display = 'none';
+    }
+}
+
+function showAddOutcomeModal() {
+    document.getElementById('outcomeModal').style.display = 'block';
+}
+
+function hideAddOutcomeModal() {
+    document.getElementById('outcomeModal').style.display = 'none';
+}
+
+function showPermissionDenied() {
+    alert('You have no permission to do that');
+}
+
+function loadTeamMembers() {
+    fetch('/api/team_members')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('new_assignee_id');
+            select.innerHTML = '<option value="">Select team member...</option>';
+            data.team_members.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = `${member.username} (${member.role})`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading team members:', error));
+}
+
+// Load team members when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadTeamMembers();
+});
+
+function showReassignModal() {
+    document.getElementById('reassignModal').style.display = 'block';
+    loadTeamMembers(); // Refresh team members list
+}
+
+function hideReassignModal() {
+    document.getElementById('reassignModal').style.display = 'none';
+}
+
+function showAddDependencyModal() {
+    document.getElementById('addDependencyModal').style.display = 'block';
+}
+
+function hideAddDependencyModal() {
+    document.getElementById('addDependencyModal').style.display = 'none';
+}
+
+// Handle dependency type toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const dependencyType = document.getElementsByName('dependency_type');
+    const taskOptions = document.getElementById('taskDependencyOptions');
+    const manualOptions = document.getElementById('manualDependencyOptions');
+    
+    dependencyType.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'task') {
+                taskOptions.style.display = 'block';
+                manualOptions.style.display = 'none';
+            } else if (this.value === 'manual') {
+                taskOptions.style.display = 'none';
+                manualOptions.style.display = 'block';
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.outcome-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.outcome-item:last-child {
+    border-bottom: none;
+}
+
+.outcome-status {
+    margin-right: 15px;
+    font-size: 1.2rem;
+}
+
+.outcome-info {
+    flex: 1;
+}
+
+.outcome-info h6 {
+    margin: 0 0 5px 0;
+    color: #2c3e50;
+}
+
+.outcome-info p {
+    margin: 0 0 5px 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90%;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid #e9ecef;
+    text-align: right;
+}
+
+.close {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+</style>
+{% endblock %}
