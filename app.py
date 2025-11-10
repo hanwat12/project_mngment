@@ -48,5 +48,13 @@ def load_user(user_id):
     from models import User
     return User.query.get(int(user_id))
 
-# Import and register routes
+# Import models and routes after app configuration
+import models
+import models_extensions
 import routes
+
+# Create tables on startup in production
+if os.environ.get("DATABASE_URL"):
+    with app.app_context():
+        db.create_all()
+        print("Database tables created/updated in production.")
