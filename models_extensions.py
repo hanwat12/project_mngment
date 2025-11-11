@@ -1,7 +1,6 @@
-
 from datetime import datetime, timezone
 from app import db
-
+from models import Task, Project, User # Added import for Task/Project/User for clarity, though typically Flask-SQLAlchemy handles deferred references
 
 class Outcome(db.Model):
     __tablename__ = 'outcome'
@@ -11,9 +10,10 @@ class Outcome(db.Model):
     description = db.Column(db.Text)
     status = db.Column(db.String(20), default='Pending')
     deadline = db.Column(db.Date)
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='CASCADE'), nullable=False)
-    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
-    completed_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
+    # FIX: Foreign key 'user.id' changed to 'users.id'
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    completed_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
     completed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
@@ -40,9 +40,10 @@ class ProjectApproval(db.Model):
     __tablename__ = 'project_approval'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'), nullable=False)
-    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    # FIX: Foreign key 'user.id' changed to 'users.id'
+    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
     status = db.Column(db.String(20), default='Pending')  # Pending, Approved, Rejected
     marked_complete_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     approved_at = db.Column(db.DateTime)
@@ -58,8 +59,9 @@ class TaskApproval(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
-    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    # FIX: Foreign key 'user.id' changed to 'users.id'
+    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
     status = db.Column(db.String(20), default='Pending')  # Pending, Approved, Rejected
     marked_complete_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     approved_at = db.Column(db.DateTime)
