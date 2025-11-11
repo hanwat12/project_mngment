@@ -240,8 +240,7 @@ class Comment(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'))
-    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'))
-
+   task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
 
 class Document(db.Model):
     __tablename__ = 'documents'
