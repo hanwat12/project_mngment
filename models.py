@@ -12,12 +12,13 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='user')  # Admin, Manager, User
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    manager_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     skills = db.Column(db.Text)
 
     # Relationships
     managed_users = db.relationship(
         'User',
+        primaryjoin='User.id == User.manager_id',
         backref=db.backref('manager', remote_side=[id]),
         lazy='dynamic'
     )
@@ -344,6 +345,6 @@ class DocumentVersion(db.Model):
 # Association table for project assignments
 project_assignments = db.Table(
     'project_assignments',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('project_id', db.Integer, db.ForeignKey('projects.id'), primary_key=True)
 )

@@ -11,9 +11,8 @@ class Outcome(db.Model):
     status = db.Column(db.String(20), default='Pending')
     deadline = db.Column(db.Date)
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='CASCADE'), nullable=False)
-    # FIX: Foreign key 'user.id' changed to 'users.id'
-    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
-    completed_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    completed_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
     completed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
@@ -41,9 +40,8 @@ class ProjectApproval(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
-    # FIX: Foreign key 'user.id' changed to 'users.id'
-    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
     status = db.Column(db.String(20), default='Pending')  # Pending, Approved, Rejected
     marked_complete_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     approved_at = db.Column(db.DateTime)
@@ -59,9 +57,8 @@ class TaskApproval(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='CASCADE'), nullable=False)
-    # FIX: Foreign key 'user.id' changed to 'users.id'
-    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    marked_complete_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
     status = db.Column(db.String(20), default='Pending')  # Pending, Approved, Rejected
     marked_complete_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     approved_at = db.Column(db.DateTime)
