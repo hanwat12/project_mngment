@@ -54,13 +54,13 @@ class User(UserMixin, db.Model):
         lazy='dynamic'
     )
     
-    # === FIX: Explicitly ties to Comment.user_id (for mentions) to resolve foreign key ambiguity ===
-    mentioned_comments = db.relationship(
+       comments = db.relationship(
         'Comment',
-        foreign_keys='Comment.user_id', 
-        backref='mentioned_user',
-        lazy='dynamic'
+        backref='user',
+        lazy=True,
+        foreign_keys='Comment.user_id'
     )
+
     
     permissions = db.relationship(
         'UserPermission',
