@@ -10,7 +10,7 @@ class Outcome(db.Model):
     description = db.Column(db.Text)
     status = db.Column(db.String(20), default='Pending')
     deadline = db.Column(db.Date)
-    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('tasks.id', ondelete='CASCADE'), nullable=False)
     # FIX: Foreign key 'user.id' changed to 'users.id'
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
     completed_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
