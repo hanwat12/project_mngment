@@ -248,14 +248,15 @@ class Task(db.Model):
 
 class Comment(db.Model):
     __tablename__ = 'comments'
-
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'))
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Secondary user ID, perhaps for mentions
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id')) 
+    manager_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+# Secondary user ID, perhaps for mentions
 
 
 class Document(db.Model):
