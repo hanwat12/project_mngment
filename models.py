@@ -13,7 +13,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, default='user')  # Admin, Manager, User
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     manager_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    skills = db.Column(db.Text)  # JSON string of skills array
+    skills = db.Column(db.Text)  
 
     # Relationships
     managed_users = db.relationship(
@@ -113,7 +113,7 @@ class Project(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Relationships
-    tasks = db.relationship('Task', backref='project', lazy='dynamic', cascade='all, delete-orphan')
+    task = db.relationship('Task', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     documents = db.relationship('Document', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     assigned_users = db.relationship('User', secondary='project_assignments', back_populates='projects_assigned')
@@ -162,7 +162,7 @@ class Project(db.Model):
 
 
 class Task(db.Model):
-    __tablename__ = 'tasks'
+    __tablename__ = 'task'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
