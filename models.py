@@ -240,8 +240,10 @@ class Comment(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'))
-   task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    # FIX: Indentation fixed here
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
+    # FIX: Foreign key 'user.id' changed to 'users.id'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
 class Document(db.Model):
     __tablename__ = 'documents'
