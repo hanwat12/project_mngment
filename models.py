@@ -45,7 +45,23 @@ class User(UserMixin, db.Model):
         backref='assigned_user',
         lazy='dynamic'
     )
-    comments = db.relationship('Comment', backref='author', lazy='dynamic')
+    
+    # === FIX: Explicitly ties to Comment.author_id to resolve foreign key ambiguity ===
+    comments = db.relationship(
+        'Comment', 
+        foreign_keys='Comment.author_id',
+        backref='author', 
+        lazy='dynamic'
+    )
+    
+    # === FIX: Explicitly ties to Comment.user_id (for mentions) to resolve foreign key ambiguity ===
+    mentioned_comments = db.relationship(
+        'Comment',
+        foreign_keys='Comment.user_id', 
+        backref='mentioned_user',
+        lazy='dynamic'
+    )
+    
     permissions = db.relationship(
         'UserPermission',
         backref='user',
@@ -153,7 +169,8 @@ class Project(db.Model):
     def is_overdue(self):
         """Check if project is overdue"""
         if self.deadline and self.status != 'Completed':
-            return datetime.now().date() > self.deadline
+            from datetime import date
+            return date.today() > self.deadline
         return False
 
 
@@ -210,7 +227,8 @@ class Task(db.Model):
     def is_overdue(self):
         """Check if task is overdue"""
         if self.deadline and self.status != 'Completed':
-            return datetime.now().date() > self.deadline
+            from datetime import date
+            return date.today() > self.deadline
         return False
 
     def calculate_outcome_progress(self):
@@ -237,7 +255,7 @@ class Comment(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'))
     task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Secondary user ID, perhaps for mentions
 
 
 class Document(db.Model):
@@ -334,4 +352,3 @@ project_assignments = db.Table(
     db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
     db.Column('project_id', db.Integer, db.ForeignKey('projects.id'), primary_key=True)
 )
-
