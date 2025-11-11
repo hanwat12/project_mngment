@@ -53,9 +53,6 @@ import models
 import models_extensions
 import routes
 
-from dotenv import load_dotenv
-load_dotenv()
-
 # Create tables on startup in production
 if os.environ.get("DATABASE_URL"):
     with app.app_context():
