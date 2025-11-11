@@ -23,7 +23,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # configure the database
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:UHOGmTfMHKqNResJErQoHTRedXMNJVmQ@postgres.railway.internal:5432/railway"
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 else:
     # Fallback to local MySQL for development
     app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:UHOGmTfMHKqNResJErQoHTRedXMNJVmQ@postgres.railway.internal:5432/railway"
