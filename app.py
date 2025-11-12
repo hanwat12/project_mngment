@@ -21,14 +21,14 @@ app.secret_key = os.environ.get("SESSION_SECRET") or "dev-secret-key-change-in-p
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # configure the database
-database_url = os.environ.get("DATABASE_URL")
+database_url = os.environ.get("mysql://root:AhYjFLpdQkFGThMLLOcDoNEhWpdgYeEt@mysql.railway.internal:3306/railway")
 if database_url:
     # Using the DATABASE_URL environment variable provided by the hosting service
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     logging.info("Using DATABASE_URL from environment.")
 else:
     # Fallback to local MySQL for development
-    app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://webuser:StrongPassword123@localhost/project_mgmt"
+    app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://webuser:StrongPassword123@localhost/project_mgm"
 
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
