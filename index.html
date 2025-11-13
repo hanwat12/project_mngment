@@ -3,40 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Management App</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
-    <header>
-        <h1>Welcome to Project Management System</h1>
-        <nav>
-            <a href="{{ url_for('login') }}">Login</a> |
-            <a href="{{ url_for('register') }}">Register</a> |
-            <a href="{{ url_for('dashboard') }}">Dashboard</a> |
-            <a href="{{ url_for('projects_list') }}">Projects</a> |
-            <a href="{{ url_for('tasks_list') }}">Tasks</a> |
-            <a href="{{ url_for('settings_index') }}">Settings</a>
-        </nav>
-    </header>
 
-    <main>
-        <section>
-            <h2>About This App</h2>
-            <p>
-                Manage your projects, teams, and milestones easily with this web-based Project Management System.
-                Built with Flask, it provides authentication, dashboards, and task management all in one place.
-            </p>
-        </section>
-
-        <section>
-            <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="App Logo" width="200">
-        </section>
-    </main>
-
-    <footer>
-        <p>&copy; 2025 Project Management System</p>
-    </footer>
-
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
 </html>
